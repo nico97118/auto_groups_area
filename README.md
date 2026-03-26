@@ -6,6 +6,7 @@ Custom component for Home Assistant that automatically creates and maintains gro
 
 - ✅ Automatically creates groups for each area (currently supports `light` entities)
 - ✅ Groups are named `light.area_[area_name]` (e.g., `light.area_salon`)
+- ✅ Optional area groups for `sensor` and `binary_sensor` by device class (temperature/humidity/illuminance, motion/presence/opening)
 - ✅ Updates automatically when entities are added/removed from areas
 - ✅ Updates automatically when areas are created/modified
 - ✅ Initializes on Home Assistant startup

@@ -43,7 +43,8 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Auto Groups by Area light platform."""
     coordinator = AreaLightGroupCoordinator(hass, config_entry, async_add_entities)
-    hass.data.setdefault(DOMAIN, {})[config_entry.entry_id] = coordinator
+    entry_data = hass.data.setdefault(DOMAIN, {}).setdefault(config_entry.entry_id, {})
+    entry_data.setdefault("coordinators", []).append(coordinator)
     await coordinator.async_start()
 
 

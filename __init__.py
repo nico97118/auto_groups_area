@@ -38,9 +38,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    coordinator = hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
-    if coordinator is not None:
-        await coordinator.async_stop()
+    entry_data = hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+    if isinstance(entry_data, dict):
+        coordinators = entry_data.get("coordinators", [])
+        for coordinator in coordinators:
+            await coordinator.async_stop()
 
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok and not hass.data.get(DOMAIN):

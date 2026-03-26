@@ -5,7 +5,7 @@ from homeassistant.const import Platform
 DOMAIN = "auto_groups_area"
 
 # Platforms
-PLATFORMS: list[Platform] = [Platform.LIGHT]
+PLATFORMS: list[Platform] = [Platform.LIGHT, Platform.BINARY_SENSOR, Platform.SENSOR]
 
 # Default configuration
 DEFAULT_DOMAINS = ["light"]
