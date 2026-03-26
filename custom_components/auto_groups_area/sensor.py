@@ -367,4 +367,3 @@ class AreaAggregatedSensor(SensorEntity):
             "group_key": self._group_key,
             "aggregation": self._aggregation,
         }
-

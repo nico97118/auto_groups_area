@@ -4,34 +4,45 @@ Custom component for Home Assistant that automatically creates and maintains gro
 
 ## Features
 
-- ✅ Automatically creates groups for each area (currently supports `light` entities)
-- ✅ Groups are named `light.area_[area_name]` (e.g., `light.area_salon`)
-- ✅ Optional area groups for `sensor` and `binary_sensor` by device class (temperature/humidity/illuminance, motion/presence/opening)
-- ✅ Updates automatically when entities are added/removed from areas
-- ✅ Updates automatically when areas are created/modified
-- ✅ Initializes on Home Assistant startup
-- ✅ Extensible architecture for future support of other entity domains
+- Automatically creates groups for each area (currently supports `light` entities)
+- Groups are named `light.area_[area_name]` (e.g., `light.area_salon`)
+- Optional area groups for `sensor` and `binary_sensor` by device class (temperature/humidity/illuminance, motion/presence/opening, door/window)
+- Updates automatically when entities are added/removed from areas
+- Updates automatically when areas are created/modified
+- Initializes on Home Assistant startup
+- Extensible architecture for future support of other entity domains
 
 ## Installation
 
 ### Manual Installation
 
-1. Copy the `auto_groups_area` folder to your Home Assistant `custom_components` directory:
+1. Copy `custom_components/auto_groups_area/` from this repository into your Home Assistant `custom_components` directory:
    ```
    custom_components/
    └── auto_groups_area/
        ├── __init__.py
        ├── config_flow.py
+       ├── binary_sensor.py
        ├── light.py
        ├── manifest.json
+       ├── sensor.py
+       ├── strings.json
        └── const.py
    ```
 
-3. Restart Home Assistant
+2. Restart Home Assistant
 
-### HACS Installation (future)
+3. Add the integration from the UI:
+   **Settings → Devices & services → Add integration → Auto Groups by Area**
 
-Coming soon!
+### HACS Installation
+
+1. In HACS, add this GitHub repository as a **Custom repository** (category: **Integration**)
+
+2. Install it from HACS, then restart Home Assistant
+
+3. Add the integration from the UI:
+   **Settings → Devices & services → Add integration → Auto Groups by Area**
 
 ## Usage
 
@@ -71,17 +82,7 @@ The group will automatically reflect:
 
 ## Configuration
 
-Currently, the component works with default settings (lights only). Future versions will support:
-
-```yaml
-auto_groups_area:
-  domains:
-    - light
-    - switch
-    - fan
-  create_empty_groups: true  # Create groups even for areas with no entities
-  group_prefix: "area_"      # Customize the prefix
-```
+No configuration is required. Add the integration from the UI and it will create/update area groups automatically.
 
 ## Troubleshooting
 
