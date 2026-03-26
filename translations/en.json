@@ -1,0 +1,14 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Auto Groups by Area",
+        "description": "Automatically create and keep updated one light group per area.",
+        "data": {}
+      }
+    },
+    "abort": {
+      "already_configured": "This integration is already configured."
+    }
+  }
+}

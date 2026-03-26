@@ -1,0 +1,11 @@
+{
+  "domain": "auto_groups_area",
+  "name": "Auto Groups by Area",
+  "codeowners": ["@nloridon"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/nloridon/auto_groups_area",
+  "iot_class": "calculated",
+  "requirements": [],
+  "version": "0.2.0"
+}

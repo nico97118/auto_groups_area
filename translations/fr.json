@@ -1,0 +1,14 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Auto Groups by Area",
+        "description": "Crée et maintient automatiquement un groupe de lumières par zone (area).",
+        "data": {}
+      }
+    },
+    "abort": {
+      "already_configured": "Cette intégration est déjà configurée."
+    }
+  }
+}
