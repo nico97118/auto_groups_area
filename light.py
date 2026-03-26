@@ -405,25 +405,44 @@ class AreaLightGroup(LightEntity):
 
     @property
     def supported_color_modes(self) -> set[ColorMode]:
-        # Some HA versions reject certain legacy modes (notably "xy").
-        allowed: set[ColorMode] = set()
-        for name in ("ONOFF", "BRIGHTNESS", "COLOR_TEMP", "HS", "RGB", "RGBW", "RGBWW", "WHITE"):
-            mode = getattr(ColorMode, name, None)
-            if mode is not None:
-                allowed.add(mode)
-
+        # HA validation rules are strict: do not mix ONOFF with other modes, and
+        # avoid exposing multiple color modes at once for a single light entity.
         modes: set[ColorMode] = set()
         for state in self._member_states():
             raw = state.attributes.get(ATTR_SUPPORTED_COLOR_MODES)
             if isinstance(raw, (list, tuple)):
                 for mode in raw:
                     try:
-                        parsed = ColorMode(mode)
-                        if parsed in allowed:
-                            modes.add(parsed)
+                        modes.add(ColorMode(mode))
                     except Exception:  # pragma: no cover
                         continue
-        return modes or ({ColorMode.ONOFF} if hasattr(ColorMode, "ONOFF") else set())
+
+        onoff = getattr(ColorMode, "ONOFF", None)
+        brightness = getattr(ColorMode, "BRIGHTNESS", None)
+        color_temp = getattr(ColorMode, "COLOR_TEMP", None)
+
+        # Prefer a single color mode if any member supports color.
+        preferred_color_mode: ColorMode | None = None
+        for name in ("RGBWW", "RGBW", "RGB", "HS", "WHITE"):
+            candidate = getattr(ColorMode, name, None)
+            if candidate is not None and candidate in modes:
+                preferred_color_mode = candidate
+                break
+
+        normalized: set[ColorMode] = set()
+        if preferred_color_mode is not None:
+            normalized.add(preferred_color_mode)
+            if color_temp is not None and color_temp in modes:
+                normalized.add(color_temp)
+            return normalized
+
+        if color_temp is not None and color_temp in modes:
+            return {color_temp}
+
+        if brightness is not None and brightness in modes:
+            return {brightness}
+
+        return {onoff} if onoff is not None else set()
 
     @property
     def color_mode(self) -> ColorMode | None:
