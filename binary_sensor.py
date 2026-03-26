@@ -37,6 +37,10 @@ GROUP_DEFS: dict[str, tuple[str, set[BinarySensorDeviceClass]]] = {
         {BinarySensorDeviceClass.OCCUPANCY, BinarySensorDeviceClass.PRESENCE},
     ),
     "opening": ("Opening", {BinarySensorDeviceClass.OPENING}),
+    "openclose": (
+        "OpenClose",
+        {BinarySensorDeviceClass.DOOR, BinarySensorDeviceClass.WINDOW},
+    ),
 }
 
 
@@ -339,4 +343,3 @@ class AreaBinarySensorGroup(BinarySensorEntity):
             "entity_id": list(self._member_entity_ids),
             "group_key": self._group_key,
         }
-
