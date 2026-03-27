@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.0.8-beta.3] - 2026-03-27
 ### Added
 - Verbose debug logging for group sync/update triggers (per-area/per-group scan details, membership diffs).
 ### Changed
@@ -12,9 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial platform sync is now scheduled after `EVENT_HOMEASSISTANT_STARTED` when Home Assistant is still starting, to avoid missing groups due to startup timing.
 ### Fixed
 - Sensor and binary_sensor group membership now prefers device class from the entity registry (fallback to state) to avoid missing groups during startup when states are not yet available.
-- Sensor groups now also track entities with pending/missing `device_class` and resync when their state appears (similar to binary_sensor).
+- Sensor and binary_sensor groups track entities with pending/missing `device_class` and resync when their state appears.
 
-## [0.8.0-beta.1] - 2026-03-27
+## [0.0.8-beta.1] - 2026-03-27
 ### Added
 - Ruff configuration (`pyproject.toml`) and optional lint dependencies (`requirements_lint.txt`).
 - GitHub Actions lint workflow running `ruff check` + `ruff format --check` (`.github/workflows/lint.yml`).
