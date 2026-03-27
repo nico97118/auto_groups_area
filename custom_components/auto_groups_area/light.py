@@ -246,7 +246,7 @@ class AreaLightGroupCoordinator:
         if not entity_id:
             return
 
-        if not any(entity_id.startswith(f"{domain}.") for domain in self.domains):
+        if not entity_id.startswith("light."):
             return
 
         old_area_id: str | None = event.data.get("old_area_id")
