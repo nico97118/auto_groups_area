@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import entity_registry as er
@@ -27,8 +26,16 @@ async def _setup_area_with_sensors(hass: HomeAssistant, area_name: str) -> str:
     entity_reg.async_update_entity(t1.entity_id, area_id=area.id)
     entity_reg.async_update_entity(t2.entity_id, area_id=area.id)
 
-    hass.states.async_set("sensor.demo_t1", "20", {"device_class": "temperature", "unit_of_measurement": "°C"})
-    hass.states.async_set("sensor.demo_t2", "22", {"device_class": "temperature", "unit_of_measurement": "°C"})
+    hass.states.async_set(
+        "sensor.demo_t1",
+        "20",
+        {"device_class": "temperature", "unit_of_measurement": "°C"},
+    )
+    hass.states.async_set(
+        "sensor.demo_t2",
+        "22",
+        {"device_class": "temperature", "unit_of_measurement": "°C"},
+    )
 
     return area.id
 
@@ -68,8 +75,16 @@ async def test_sensor_illuminance_max(hass: HomeAssistant, make_config_entry) ->
     entity_reg.async_update_entity(lux1.entity_id, area_id=area.id)
     entity_reg.async_update_entity(lux2.entity_id, area_id=area.id)
 
-    hass.states.async_set("sensor.demo_lux1", "100", {"device_class": "illuminance", "unit_of_measurement": "lx"})
-    hass.states.async_set("sensor.demo_lux2", "250", {"device_class": "illuminance", "unit_of_measurement": "lx"})
+    hass.states.async_set(
+        "sensor.demo_lux1",
+        "100",
+        {"device_class": "illuminance", "unit_of_measurement": "lx"},
+    )
+    hass.states.async_set(
+        "sensor.demo_lux2",
+        "250",
+        {"device_class": "illuminance", "unit_of_measurement": "lx"},
+    )
 
     await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
     await hass.async_block_till_done()
@@ -79,7 +94,9 @@ async def test_sensor_illuminance_max(hass: HomeAssistant, make_config_entry) ->
     assert float(state.state) == 250.0
 
 
-async def test_sensor_last_uses_latest_changed(hass: HomeAssistant, make_config_entry) -> None:
+async def test_sensor_last_uses_latest_changed(
+    hass: HomeAssistant, make_config_entry
+) -> None:
     await async_setup_component(hass, "sensor", {})
 
     entry = make_config_entry(options={CONF_HUMIDITY_AGGREGATION: AGGREGATION_LAST})
@@ -96,8 +113,12 @@ async def test_sensor_last_uses_latest_changed(hass: HomeAssistant, make_config_
     entity_reg.async_update_entity(h1.entity_id, area_id=area.id)
     entity_reg.async_update_entity(h2.entity_id, area_id=area.id)
 
-    hass.states.async_set("sensor.demo_h1", "40", {"device_class": "humidity", "unit_of_measurement": "%"})
-    hass.states.async_set("sensor.demo_h2", "45", {"device_class": "humidity", "unit_of_measurement": "%"})
+    hass.states.async_set(
+        "sensor.demo_h1", "40", {"device_class": "humidity", "unit_of_measurement": "%"}
+    )
+    hass.states.async_set(
+        "sensor.demo_h2", "45", {"device_class": "humidity", "unit_of_measurement": "%"}
+    )
 
     await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
     await hass.async_block_till_done()
@@ -106,7 +127,9 @@ async def test_sensor_last_uses_latest_changed(hass: HomeAssistant, make_config_
     assert group is not None
 
     # Update h1 to be the most recently changed -> group should follow.
-    hass.states.async_set("sensor.demo_h1", "55", {"device_class": "humidity", "unit_of_measurement": "%"})
+    hass.states.async_set(
+        "sensor.demo_h1", "55", {"device_class": "humidity", "unit_of_measurement": "%"}
+    )
     await hass.async_block_till_done()
 
     group2 = hass.states.get("sensor.area_salle_de_bain_humidity")

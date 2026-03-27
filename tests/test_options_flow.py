@@ -8,7 +8,6 @@ from custom_components.auto_groups_area.const import (
     CONF_ENABLE_SENSORS,
     CONF_EXCLUDED_ENTITIES,
     CONF_HUMIDITY_AGGREGATION,
-    DOMAIN,
 )
 
 
@@ -27,7 +26,9 @@ async def test_options_flow_multistep(hass: HomeAssistant, setup_integration) ->
     assert result2["type"] == "form"
     assert result2["step_id"] == "binary_sensors"
 
-    result3 = await hass.config_entries.options.async_configure(result2["flow_id"], user_input={})
+    result3 = await hass.config_entries.options.async_configure(
+        result2["flow_id"], user_input={}
+    )
     assert result3["type"] == "form"
     assert result3["step_id"] == "advanced"
 
@@ -37,7 +38,9 @@ async def test_options_flow_multistep(hass: HomeAssistant, setup_integration) ->
     assert result4["type"] == "create_entry"
 
 
-async def test_options_flow_sensors_step(hass: HomeAssistant, setup_integration) -> None:
+async def test_options_flow_sensors_step(
+    hass: HomeAssistant, setup_integration
+) -> None:
     entry = setup_integration
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
@@ -45,7 +48,8 @@ async def test_options_flow_sensors_step(hass: HomeAssistant, setup_integration)
     assert result["step_id"] == "init"
 
     result2 = await hass.config_entries.options.async_configure(
-        result["flow_id"], user_input={CONF_ENABLE_SENSORS: True, CONF_ENABLE_BINARY_SENSORS: False}
+        result["flow_id"],
+        user_input={CONF_ENABLE_SENSORS: True, CONF_ENABLE_BINARY_SENSORS: False},
     )
     assert result2["type"] == "form"
     assert result2["step_id"] == "sensors"
@@ -56,7 +60,9 @@ async def test_options_flow_sensors_step(hass: HomeAssistant, setup_integration)
     assert result3["type"] == "form"
     assert result3["step_id"] == "advanced"
 
-    result4 = await hass.config_entries.options.async_configure(result3["flow_id"], user_input={})
+    result4 = await hass.config_entries.options.async_configure(
+        result3["flow_id"], user_input={}
+    )
     assert result4["type"] == "create_entry"
 
     # Verify option got stored.

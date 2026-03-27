@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import pytest
-
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
-
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.auto_groups_area.const import DOMAIN

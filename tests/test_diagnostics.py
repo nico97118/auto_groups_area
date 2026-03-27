@@ -9,7 +9,6 @@ from custom_components.auto_groups_area.diagnostics import (
     async_get_config_entry_diagnostics,
     async_get_device_diagnostics,
 )
-from custom_components.auto_groups_area.const import DOMAIN
 
 
 async def test_config_entry_diagnostics(hass: HomeAssistant, setup_integration) -> None:
@@ -28,7 +27,9 @@ async def test_device_diagnostics(hass: HomeAssistant, setup_integration) -> Non
     area = area_reg.async_create("Test")
 
     device_reg = dr.async_get(hass)
-    device = device_reg.async_get_or_create(config_entry_id=entry.entry_id, identifiers={("demo", "dev")})
+    device = device_reg.async_get_or_create(
+        config_entry_id=entry.entry_id, identifiers={("demo", "dev")}
+    )
     device_reg.async_update_device(device.id, area_id=area.id)
 
     entity_reg = er.async_get(hass)

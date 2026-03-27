@@ -1,10 +1,10 @@
 """The Auto Groups by Area integration."""
+
 import logging
 
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.core import ServiceCall
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -40,7 +40,9 @@ async def _async_reload_all_groups(hass: HomeAssistant) -> None:
     tasks = []
     for entry in hass.config_entries.async_entries(DOMAIN):
         entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
-        coordinators = entry_data.get("coordinators", []) if isinstance(entry_data, dict) else []
+        coordinators = (
+            entry_data.get("coordinators", []) if isinstance(entry_data, dict) else []
+        )
         for coordinator in coordinators:
             update = getattr(coordinator, "async_update_all_groups", None)
             if update is not None:

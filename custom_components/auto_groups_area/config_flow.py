@@ -1,8 +1,8 @@
 """Config flow for Auto Groups by Area integration."""
+
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
@@ -26,8 +26,8 @@ from .const import (
     CONF_GROUP_PREFIX,
     CONF_HUMIDITY_AGGREGATION,
     CONF_ILLUMINANCE_AGGREGATION,
-    CONF_INCLUDED_AREAS,
     CONF_INCLUDE_DEVICE_AREA,
+    CONF_INCLUDED_AREAS,
     CONF_TEMPERATURE_AGGREGATION,
     DEFAULT_OPTIONS,
     DOMAIN,
@@ -59,7 +59,9 @@ class AutoGroupsAreaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     @staticmethod
     @callback
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> config_entries.OptionsFlow:
         return AutoGroupsAreaOptionsFlow(config_entry)
 
 
@@ -74,9 +76,15 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
 
     def _current_opts(self) -> dict[str, Any]:
         """Return defaults + existing options + in-progress options."""
-        return {**DEFAULT_OPTIONS, **dict(self._config_entry.options), **self._options_data}
+        return {
+            **DEFAULT_OPTIONS,
+            **dict(self._config_entry.options),
+            **self._options_data,
+        }
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         opts = self._current_opts()
 
         if user_input is not None:
@@ -89,18 +97,28 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
 
         schema = vol.Schema(
             {
-                vol.Optional(CONF_ENABLE_LIGHTS, default=opts[CONF_ENABLE_LIGHTS]): bool,
-                vol.Optional(CONF_ENABLE_BINARY_SENSORS, default=opts[CONF_ENABLE_BINARY_SENSORS]): bool,
-                vol.Optional(CONF_ENABLE_SENSORS, default=opts[CONF_ENABLE_SENSORS]): bool,
+                vol.Optional(
+                    CONF_ENABLE_LIGHTS, default=opts[CONF_ENABLE_LIGHTS]
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_BINARY_SENSORS, default=opts[CONF_ENABLE_BINARY_SENSORS]
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_SENSORS, default=opts[CONF_ENABLE_SENSORS]
+                ): bool,
                 vol.Optional(CONF_GROUP_PREFIX, default=opts[CONF_GROUP_PREFIX]): str,
-                vol.Optional(CONF_CREATE_WHEN_EMPTY, default=opts[CONF_CREATE_WHEN_EMPTY]): bool,
-                vol.Optional(CONF_INCLUDE_DEVICE_AREA, default=opts[CONF_INCLUDE_DEVICE_AREA]): bool,
-                vol.Optional(CONF_INCLUDED_AREAS, default=opts[CONF_INCLUDED_AREAS]): selector(
-                    {"area": {"multiple": True}}
-                ),
-                vol.Optional(CONF_EXCLUDED_AREAS, default=opts[CONF_EXCLUDED_AREAS]): selector(
-                    {"area": {"multiple": True}}
-                ),
+                vol.Optional(
+                    CONF_CREATE_WHEN_EMPTY, default=opts[CONF_CREATE_WHEN_EMPTY]
+                ): bool,
+                vol.Optional(
+                    CONF_INCLUDE_DEVICE_AREA, default=opts[CONF_INCLUDE_DEVICE_AREA]
+                ): bool,
+                vol.Optional(
+                    CONF_INCLUDED_AREAS, default=opts[CONF_INCLUDED_AREAS]
+                ): selector({"area": {"multiple": True}}),
+                vol.Optional(
+                    CONF_EXCLUDED_AREAS, default=opts[CONF_EXCLUDED_AREAS]
+                ): selector({"area": {"multiple": True}}),
             }
         )
 
@@ -120,16 +138,26 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
 
         schema = vol.Schema(
             {
-                vol.Optional(CONF_ENABLE_BS_MOTION, default=opts[CONF_ENABLE_BS_MOTION]): bool,
-                vol.Optional(CONF_ENABLE_BS_PRESENCE, default=opts[CONF_ENABLE_BS_PRESENCE]): bool,
-                vol.Optional(CONF_ENABLE_BS_OPENING, default=opts[CONF_ENABLE_BS_OPENING]): bool,
-                vol.Optional(CONF_ENABLE_BS_OPENCLOSE, default=opts[CONF_ENABLE_BS_OPENCLOSE]): bool,
+                vol.Optional(
+                    CONF_ENABLE_BS_MOTION, default=opts[CONF_ENABLE_BS_MOTION]
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_BS_PRESENCE, default=opts[CONF_ENABLE_BS_PRESENCE]
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_BS_OPENING, default=opts[CONF_ENABLE_BS_OPENING]
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_BS_OPENCLOSE, default=opts[CONF_ENABLE_BS_OPENCLOSE]
+                ): bool,
             }
         )
 
         return self.async_show_form(step_id="binary_sensors", data_schema=schema)
 
-    async def async_step_sensors(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_sensors(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Configure sensor aggregation (only shown if enabled)."""
         opts = self._current_opts()
 
@@ -142,15 +170,36 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
                 vol.Optional(
                     CONF_ILLUMINANCE_AGGREGATION,
                     default=opts[CONF_ILLUMINANCE_AGGREGATION],
-                ): vol.In([AGGREGATION_MAX, AGGREGATION_MEAN, AGGREGATION_MIN, AGGREGATION_LAST]),
+                ): vol.In(
+                    [
+                        AGGREGATION_MAX,
+                        AGGREGATION_MEAN,
+                        AGGREGATION_MIN,
+                        AGGREGATION_LAST,
+                    ]
+                ),
                 vol.Optional(
                     CONF_HUMIDITY_AGGREGATION,
                     default=opts[CONF_HUMIDITY_AGGREGATION],
-                ): vol.In([AGGREGATION_MAX, AGGREGATION_MEAN, AGGREGATION_MIN, AGGREGATION_LAST]),
+                ): vol.In(
+                    [
+                        AGGREGATION_MAX,
+                        AGGREGATION_MEAN,
+                        AGGREGATION_MIN,
+                        AGGREGATION_LAST,
+                    ]
+                ),
                 vol.Optional(
                     CONF_TEMPERATURE_AGGREGATION,
                     default=opts[CONF_TEMPERATURE_AGGREGATION],
-                ): vol.In([AGGREGATION_MAX, AGGREGATION_MEAN, AGGREGATION_MIN, AGGREGATION_LAST]),
+                ): vol.In(
+                    [
+                        AGGREGATION_MAX,
+                        AGGREGATION_MEAN,
+                        AGGREGATION_MIN,
+                        AGGREGATION_LAST,
+                    ]
+                ),
             }
         )
 
@@ -168,9 +217,9 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
 
         schema = vol.Schema(
             {
-                vol.Optional(CONF_EXCLUDED_ENTITIES, default=opts[CONF_EXCLUDED_ENTITIES]): selector(
-                    {"entity": {"multiple": True}}
-                )
+                vol.Optional(
+                    CONF_EXCLUDED_ENTITIES, default=opts[CONF_EXCLUDED_ENTITIES]
+                ): selector({"entity": {"multiple": True}})
             }
         )
 

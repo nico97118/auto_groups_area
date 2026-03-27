@@ -25,7 +25,9 @@ async def test_reload_service_creates_groups_after_changes(
     entity_reg = er.async_get(hass)
     later = entity_reg.async_get_or_create("light", "demo", "later")
     entity_reg.async_update_entity(later.entity_id, area_id=area.id)
-    hass.states.async_set("light.demo_later", "on", {"supported_color_modes": ["onoff"]})
+    hass.states.async_set(
+        "light.demo_later", "on", {"supported_color_modes": ["onoff"]}
+    )
 
     await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
     await hass.async_block_till_done()

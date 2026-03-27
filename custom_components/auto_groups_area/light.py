@@ -36,8 +36,8 @@ from .const import (
     CONF_EXCLUDED_AREAS,
     CONF_EXCLUDED_ENTITIES,
     CONF_GROUP_PREFIX,
-    CONF_INCLUDED_AREAS,
     CONF_INCLUDE_DEVICE_AREA,
+    CONF_INCLUDED_AREAS,
     DEFAULT_OPTIONS,
     DOMAIN,
     merged_options,
@@ -143,10 +143,14 @@ class AreaLightGroupCoordinator:
 
         # Backward compatibility: comma-separated area *names*
         included_names = (
-            self._parse_area_name_list(included_raw) if isinstance(included_raw, str) else set()
+            self._parse_area_name_list(included_raw)
+            if isinstance(included_raw, str)
+            else set()
         )
         excluded_names = (
-            self._parse_area_name_list(excluded_raw) if isinstance(excluded_raw, str) else set()
+            self._parse_area_name_list(excluded_raw)
+            if isinstance(excluded_raw, str)
+            else set()
         )
         normalized = self._normalize_name(area.name)
         if included_names:
@@ -218,7 +222,9 @@ class AreaLightGroupCoordinator:
 
         if unique_id in self.groups:
             group = self.groups[unique_id]
-            group.update_area(area_name=area.name, normalized_area_name=normalized_area_name)
+            group.update_area(
+                area_name=area.name, normalized_area_name=normalized_area_name
+            )
             group.update_members(member_entity_ids)
             return
 
@@ -252,7 +258,9 @@ class AreaLightGroupCoordinator:
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
 
-        self.hass.async_create_task(self._async_update_areas({old_area_id, new_area_id}))
+        self.hass.async_create_task(
+            self._async_update_areas({old_area_id, new_area_id})
+        )
 
     @callback
     def _handle_area_registry_updated(self, event: Event) -> None:
@@ -279,7 +287,9 @@ class AreaLightGroupCoordinator:
 
         # When a device changes area, entity registry may not change, so update both areas.
         if old_area_id or new_area_id:
-            self.hass.async_create_task(self._async_update_areas({old_area_id, new_area_id}))
+            self.hass.async_create_task(
+                self._async_update_areas({old_area_id, new_area_id})
+            )
             return
 
         # Fallback: if event schema differs, do a full refresh (still cheap for typical setups).
@@ -339,7 +349,9 @@ class AreaLightGroup(LightEntity):
 
         # Using "Area <name>" produces entity_id like "light.area_<name>" after slugify.
         self._attr_name = f"Area {area_name}"
-        self._attr_suggested_object_id = f"{self._group_prefix}{self._normalized_area_name}"
+        self._attr_suggested_object_id = (
+            f"{self._group_prefix}{self._normalized_area_name}"
+        )
 
         self._unsub_member_state: Callable[[], None] | None = None
 
@@ -358,7 +370,9 @@ class AreaLightGroup(LightEntity):
         self._area_name = area_name
         self._normalized_area_name = normalized_area_name
         self._attr_name = f"Area {area_name}"
-        self._attr_suggested_object_id = f"{self._group_prefix}{self._normalized_area_name}"
+        self._attr_suggested_object_id = (
+            f"{self._group_prefix}{self._normalized_area_name}"
+        )
         self.async_write_ha_state()
 
     @callback
@@ -436,7 +450,10 @@ class AreaLightGroup(LightEntity):
                 values.append((float(value[0]), float(value[1])))
         if not values:
             return None
-        return (sum(v[0] for v in values) / len(values), sum(v[1] for v in values) / len(values))
+        return (
+            sum(v[0] for v in values) / len(values),
+            sum(v[1] for v in values) / len(values),
+        )
 
     def _avg_tuple3_attr(self, attr: str) -> tuple[int, int, int] | None:
         values: list[tuple[int, int, int]] = []

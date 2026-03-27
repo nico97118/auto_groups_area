@@ -8,7 +8,9 @@ from homeassistant.setup import async_setup_component
 from custom_components.auto_groups_area.const import DOMAIN
 
 
-async def test_binary_sensor_openclose_on_if_any_on(hass: HomeAssistant, setup_integration) -> None:
+async def test_binary_sensor_openclose_on_if_any_on(
+    hass: HomeAssistant, setup_integration
+) -> None:
     await async_setup_component(hass, "binary_sensor", {})
 
     area_reg = ar.async_get(hass)

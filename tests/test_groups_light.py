@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
@@ -65,7 +64,9 @@ async def test_light_group_includes_device_area_when_enabled(
     assert "light.demo_desk" in state.attributes["entity_id"]
 
 
-async def test_light_group_excludes_entities(hass: HomeAssistant, make_config_entry) -> None:
+async def test_light_group_excludes_entities(
+    hass: HomeAssistant, make_config_entry
+) -> None:
     await async_setup_component(hass, "light", {})
 
     entry = make_config_entry(options={CONF_EXCLUDED_ENTITIES: ["light.demo_skip"]})
@@ -94,7 +95,9 @@ async def test_light_group_excludes_entities(hass: HomeAssistant, make_config_en
     assert "light.demo_skip" not in state.attributes["entity_id"]
 
 
-async def test_light_no_empty_group_by_default(hass: HomeAssistant, make_config_entry) -> None:
+async def test_light_no_empty_group_by_default(
+    hass: HomeAssistant, make_config_entry
+) -> None:
     await async_setup_component(hass, "light", {})
 
     entry = make_config_entry(options={CONF_CREATE_WHEN_EMPTY: False})
@@ -111,7 +114,9 @@ async def test_light_no_empty_group_by_default(hass: HomeAssistant, make_config_
     assert hass.states.get("light.area_emptyarea") is None
 
 
-async def test_light_include_device_area_toggle(hass: HomeAssistant, make_config_entry) -> None:
+async def test_light_include_device_area_toggle(
+    hass: HomeAssistant, make_config_entry
+) -> None:
     await async_setup_component(hass, "light", {})
 
     entry = make_config_entry(options={CONF_INCLUDE_DEVICE_AREA: False})

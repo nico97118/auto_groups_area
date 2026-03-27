@@ -39,6 +39,17 @@ pip install -r requirements_test.txt
 python -m pytest
 ```
 
+## Lint / format (optional)
+
+This repo can be checked/formatted with `ruff`.
+
+```bash
+pip install -r requirements_lint.txt
+ruff check .
+ruff format --check .
+```
+
 ## CI
 
 GitHub Actions runs `pytest` on every push and pull request via `.github/workflows/tests.yml`.
+GitHub Actions also runs `ruff` (lint + format check) via `.github/workflows/lint.yml`.

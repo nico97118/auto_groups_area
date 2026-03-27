@@ -34,8 +34,8 @@ from .const import (
     CONF_EXCLUDED_AREAS,
     CONF_EXCLUDED_ENTITIES,
     CONF_GROUP_PREFIX,
-    CONF_INCLUDED_AREAS,
     CONF_INCLUDE_DEVICE_AREA,
+    CONF_INCLUDED_AREAS,
     DEFAULT_OPTIONS,
     DOMAIN,
     merged_options,
@@ -64,7 +64,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the Auto Groups by Area binary_sensor platform."""
-    coordinator = AreaBinarySensorGroupCoordinator(hass, config_entry, async_add_entities)
+    coordinator = AreaBinarySensorGroupCoordinator(
+        hass, config_entry, async_add_entities
+    )
     entry_data = hass.data.setdefault(DOMAIN, {}).setdefault(config_entry.entry_id, {})
     entry_data.setdefault("coordinators", []).append(coordinator)
     await coordinator.async_start()
@@ -148,10 +150,14 @@ class AreaBinarySensorGroupCoordinator:
             return area.id not in excluded_ids
 
         included_names = (
-            self._parse_area_name_list(included_raw) if isinstance(included_raw, str) else set()
+            self._parse_area_name_list(included_raw)
+            if isinstance(included_raw, str)
+            else set()
         )
         excluded_names = (
-            self._parse_area_name_list(excluded_raw) if isinstance(excluded_raw, str) else set()
+            self._parse_area_name_list(excluded_raw)
+            if isinstance(excluded_raw, str)
+            else set()
         )
         normalized = self._normalize_name(area.name)
         if included_names:
@@ -160,7 +166,9 @@ class AreaBinarySensorGroupCoordinator:
             return normalized not in excluded_names
         return True
 
-    def _enabled_group_defs(self) -> dict[str, tuple[str, set[BinarySensorDeviceClass]]]:
+    def _enabled_group_defs(
+        self,
+    ) -> dict[str, tuple[str, set[BinarySensorDeviceClass]]]:
         enabled = {
             "motion": bool(self._options[CONF_ENABLE_BS_MOTION]),
             "presence": bool(self._options[CONF_ENABLE_BS_PRESENCE]),
@@ -214,7 +222,9 @@ class AreaBinarySensorGroupCoordinator:
                 if include_device_area and entry.device_id:
                     device = device_reg.devices.get(entry.device_id)
                     if device is not None and device.area_id == area.id:
-                        if self._is_matching_device_class(entry.entity_id, device_classes):
+                        if self._is_matching_device_class(
+                            entry.entity_id, device_classes
+                        ):
                             entity_ids.append(entry.entity_id)
             return entity_ids
 
@@ -235,7 +245,9 @@ class AreaBinarySensorGroupCoordinator:
 
             if unique_id in self.groups:
                 group = self.groups[unique_id]
-                group.update_area(area_name=area.name, normalized_area_name=normalized_area_name)
+                group.update_area(
+                    area_name=area.name, normalized_area_name=normalized_area_name
+                )
                 group.update_members(member_entity_ids)
                 continue
 
@@ -300,7 +312,9 @@ class AreaBinarySensorGroupCoordinator:
             return
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
-        self.hass.async_create_task(self._async_update_areas({old_area_id, new_area_id}))
+        self.hass.async_create_task(
+            self._async_update_areas({old_area_id, new_area_id})
+        )
 
     @callback
     def _handle_area_registry_updated(self, event: Event) -> None:
@@ -323,7 +337,9 @@ class AreaBinarySensorGroupCoordinator:
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
         if old_area_id or new_area_id:
-            self.hass.async_create_task(self._async_update_areas({old_area_id, new_area_id}))
+            self.hass.async_create_task(
+                self._async_update_areas({old_area_id, new_area_id})
+            )
             return
 
         self.hass.async_create_task(self.async_update_all_groups())
@@ -361,7 +377,9 @@ class AreaBinarySensorGroup(BinarySensorEntity):
             f"{self._group_prefix}{self._normalized_area_name}_{self._group_key}"
         )
         # Pick the first (stable enough) device class for display.
-        self._attr_device_class = next(iter(sorted(device_classes, key=lambda d: d.value)))
+        self._attr_device_class = next(
+            iter(sorted(device_classes, key=lambda d: d.value))
+        )
 
         self._unsub_member_state: Callable[[], None] | None = None
 

@@ -32,7 +32,9 @@ def _coordinator_diagnostics(coordinator: Any) -> dict[str, Any]:
                     "unique_id": unique_id,
                     "entity_id": getattr(group, "entity_id", None),
                     "name": getattr(group, "name", None),
-                    "members_count": len(member_ids) if isinstance(member_ids, list) else None,
+                    "members_count": len(member_ids)
+                    if isinstance(member_ids, list)
+                    else None,
                 }
             )
 
@@ -65,7 +67,8 @@ async def async_get_config_entry_diagnostics(
         "enabled_platforms": [p.value for p in enabled_platforms(entry.options)],
         "runtime": {
             "coordinators": [
-                _coordinator_diagnostics(coordinator) for coordinator in (coordinators or [])
+                _coordinator_diagnostics(coordinator)
+                for coordinator in (coordinators or [])
             ],
         },
     }
@@ -94,7 +97,9 @@ async def async_get_device_diagnostics(
 
     # Best-effort: identify groups that currently include one of this device's entities.
     entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
-    coordinators = entry_data.get("coordinators", []) if isinstance(entry_data, dict) else []
+    coordinators = (
+        entry_data.get("coordinators", []) if isinstance(entry_data, dict) else []
+    )
     entity_ids = {e["entity_id"] for e in entities}
     included_by_groups: list[dict[str, Any]] = []
     for coordinator in coordinators or []:
@@ -123,4 +128,3 @@ async def async_get_device_diagnostics(
         "entities": entities,
         "included_by_groups": included_by_groups,
     }
-

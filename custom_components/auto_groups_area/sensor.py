@@ -37,8 +37,8 @@ from .const import (
     CONF_GROUP_PREFIX,
     CONF_HUMIDITY_AGGREGATION,
     CONF_ILLUMINANCE_AGGREGATION,
-    CONF_INCLUDED_AREAS,
     CONF_INCLUDE_DEVICE_AREA,
+    CONF_INCLUDED_AREAS,
     CONF_TEMPERATURE_AGGREGATION,
     DEFAULT_OPTIONS,
     DOMAIN,
@@ -152,10 +152,14 @@ class AreaSensorGroupCoordinator:
             return area.id not in excluded_ids
 
         included_names = (
-            self._parse_area_name_list(included_raw) if isinstance(included_raw, str) else set()
+            self._parse_area_name_list(included_raw)
+            if isinstance(included_raw, str)
+            else set()
         )
         excluded_names = (
-            self._parse_area_name_list(excluded_raw) if isinstance(excluded_raw, str) else set()
+            self._parse_area_name_list(excluded_raw)
+            if isinstance(excluded_raw, str)
+            else set()
         )
         normalized = self._normalize_name(area.name)
         if included_names:
@@ -226,13 +230,19 @@ class AreaSensorGroupCoordinator:
                     if include_device_area:
                         device = device_reg.devices.get(entry.device_id)
                         if device is not None and device.area_id == area.id:
-                            if self._is_matching_device_class(entry.entity_id, device_class):
+                            if self._is_matching_device_class(
+                                entry.entity_id, device_class
+                            ):
                                 entity_ids.append(entry.entity_id)
             return entity_ids
 
         normalized_area_name = self._normalize_name(area.name)
 
-        for group_key, (label, device_class, default_aggregation) in SENSOR_GROUP_DEFS.items():
+        for group_key, (
+            label,
+            device_class,
+            default_aggregation,
+        ) in SENSOR_GROUP_DEFS.items():
             unique_id = f"{DOMAIN}_sensor_{group_key}_{area.id}"
             member_entity_ids = _area_entity_ids(device_class)
             aggregation = self._aggregation_for_group(group_key) or default_aggregation
@@ -248,7 +258,9 @@ class AreaSensorGroupCoordinator:
 
             if unique_id in self.groups:
                 group = self.groups[unique_id]
-                group.update_area(area_name=area.name, normalized_area_name=normalized_area_name)
+                group.update_area(
+                    area_name=area.name, normalized_area_name=normalized_area_name
+                )
                 group.update_members(member_entity_ids)
                 continue
 
@@ -267,7 +279,9 @@ class AreaSensorGroupCoordinator:
             self.groups[unique_id] = group
             self.async_add_entities([group], update_before_add=True)
 
-    def _is_matching_device_class(self, entity_id: str, device_class: SensorDeviceClass) -> bool:
+    def _is_matching_device_class(
+        self, entity_id: str, device_class: SensorDeviceClass
+    ) -> bool:
         state = self.hass.states.get(entity_id)
         if state is None:
             return False
@@ -312,7 +326,9 @@ class AreaSensorGroupCoordinator:
             return
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
-        self.hass.async_create_task(self._async_update_areas({old_area_id, new_area_id}))
+        self.hass.async_create_task(
+            self._async_update_areas({old_area_id, new_area_id})
+        )
 
     @callback
     def _handle_area_registry_updated(self, event: Event) -> None:
@@ -335,7 +351,9 @@ class AreaSensorGroupCoordinator:
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
         if old_area_id or new_area_id:
-            self.hass.async_create_task(self._async_update_areas({old_area_id, new_area_id}))
+            self.hass.async_create_task(
+                self._async_update_areas({old_area_id, new_area_id})
+            )
             return
 
         self.hass.async_create_task(self.async_update_all_groups())
