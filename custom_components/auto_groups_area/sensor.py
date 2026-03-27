@@ -26,7 +26,22 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.typing import StateType
 
-from .const import DOMAIN
+from .const import (
+    AGGREGATION_MAX,
+    AGGREGATION_MEAN,
+    AGGREGATION_MIN,
+    CONF_CREATE_WHEN_EMPTY,
+    CONF_EXCLUDED_AREAS,
+    CONF_GROUP_PREFIX,
+    CONF_HUMIDITY_AGGREGATION,
+    CONF_ILLUMINANCE_AGGREGATION,
+    CONF_INCLUDED_AREAS,
+    CONF_INCLUDE_DEVICE_AREA,
+    CONF_TEMPERATURE_AGGREGATION,
+    DEFAULT_OPTIONS,
+    DOMAIN,
+    merged_options,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +49,7 @@ _LOGGER = logging.getLogger(__name__)
 class Aggregation(str):
     MAX = "max"
     MEAN = "mean"
+    MIN = "min"
 
 
 SENSOR_GROUP_DEFS: dict[str, tuple[str, SensorDeviceClass, Aggregation]] = {
@@ -73,8 +89,10 @@ class AreaSensorGroupCoordinator:
         self._unsub_entity_reg: Callable[[], None] | None = None
         self._unsub_area_reg: Callable[[], None] | None = None
         self._unsub_device_reg: Callable[[], None] | None = None
+        self._options = {**DEFAULT_OPTIONS, **dict(config_entry.options)}
 
     async def async_start(self) -> None:
+        self._options = merged_options(self.config_entry.options)
         self._unsub_entity_reg = self.hass.bus.async_listen(
             er.EVENT_ENTITY_REGISTRY_UPDATED, self._handle_entity_registry_updated
         )
@@ -104,11 +122,48 @@ class AreaSensorGroupCoordinator:
         name = re.sub(r"[-\s]+", "_", name)
         return name
 
+    def _parse_area_list(self, raw: str) -> set[str]:
+        items = []
+        for part in (raw or "").split(","):
+            part = part.strip()
+            if part:
+                items.append(self._normalize_name(part))
+        return set(items)
+
+    def _area_allowed(self, area_name: str) -> bool:
+        included = self._parse_area_list(str(self._options[CONF_INCLUDED_AREAS]))
+        excluded = self._parse_area_list(str(self._options[CONF_EXCLUDED_AREAS]))
+
+        normalized = self._normalize_name(area_name)
+        if included:
+            return normalized in included
+        if excluded:
+            return normalized not in excluded
+        return True
+
+    def _aggregation_for_group(self, group_key: str) -> Aggregation:
+        if group_key == "illuminance":
+            raw = str(self._options[CONF_ILLUMINANCE_AGGREGATION])
+        elif group_key == "humidity":
+            raw = str(self._options[CONF_HUMIDITY_AGGREGATION])
+        elif group_key == "temperature":
+            raw = str(self._options[CONF_TEMPERATURE_AGGREGATION])
+        else:
+            raw = AGGREGATION_MEAN
+
+        if raw == AGGREGATION_MAX:
+            return Aggregation.MAX
+        if raw == AGGREGATION_MIN:
+            return Aggregation.MIN
+        return Aggregation.MEAN
+
     async def async_update_all_groups(self) -> None:
         entity_reg = er.async_get(self.hass)
         area_reg = ar.async_get(self.hass)
 
         for area in area_reg.async_list_areas():
+            if not self._area_allowed(area.name):
+                continue
             await self._async_update_groups_for_area(area, entity_reg)
 
     async def _async_update_groups_for_area(
@@ -117,6 +172,9 @@ class AreaSensorGroupCoordinator:
         entity_reg: er.EntityRegistry,
     ) -> None:
         device_reg = dr.async_get(self.hass)
+        include_device_area = bool(self._options[CONF_INCLUDE_DEVICE_AREA])
+        create_when_empty = bool(self._options[CONF_CREATE_WHEN_EMPTY])
+        group_prefix = str(self._options[CONF_GROUP_PREFIX] or "")
 
         def _area_entity_ids(device_class: SensorDeviceClass) -> list[str]:
             entity_ids: list[str] = []
@@ -132,19 +190,21 @@ class AreaSensorGroupCoordinator:
                     continue
 
                 if entry.device_id:
-                    device = device_reg.devices.get(entry.device_id)
-                    if device is not None and device.area_id == area.id:
-                        if self._is_matching_device_class(entry.entity_id, device_class):
-                            entity_ids.append(entry.entity_id)
+                    if include_device_area:
+                        device = device_reg.devices.get(entry.device_id)
+                        if device is not None and device.area_id == area.id:
+                            if self._is_matching_device_class(entry.entity_id, device_class):
+                                entity_ids.append(entry.entity_id)
             return entity_ids
 
         normalized_area_name = self._normalize_name(area.name)
 
-        for group_key, (label, device_class, aggregation) in SENSOR_GROUP_DEFS.items():
+        for group_key, (label, device_class, default_aggregation) in SENSOR_GROUP_DEFS.items():
             unique_id = f"{DOMAIN}_sensor_{group_key}_{area.id}"
             member_entity_ids = _area_entity_ids(device_class)
+            aggregation = self._aggregation_for_group(group_key) or default_aggregation
 
-            if not member_entity_ids:
+            if not member_entity_ids and not create_when_empty:
                 existing = self.groups.pop(unique_id, None)
                 if existing is not None:
                     _LOGGER.info(
@@ -164,6 +224,7 @@ class AreaSensorGroupCoordinator:
                 area_id=area.id,
                 area_name=area.name,
                 normalized_area_name=normalized_area_name,
+                group_prefix=group_prefix,
                 group_key=group_key,
                 label=label,
                 device_class=device_class,
@@ -197,6 +258,8 @@ class AreaSensorGroupCoordinator:
         for area_id in area_ids:
             area = area_reg.async_get_area(area_id)
             if area is None:
+                continue
+            if not self._area_allowed(area.name):
                 continue
             await self._async_update_groups_for_area(area, entity_reg)
 
@@ -257,6 +320,7 @@ class AreaAggregatedSensor(SensorEntity):
         area_id: str,
         area_name: str,
         normalized_area_name: str,
+        group_prefix: str,
         group_key: str,
         label: str,
         device_class: SensorDeviceClass,
@@ -267,11 +331,15 @@ class AreaAggregatedSensor(SensorEntity):
         self._area_id = area_id
         self._area_name = area_name
         self._normalized_area_name = normalized_area_name
+        self._group_prefix = group_prefix
         self._group_key = group_key
         self._aggregation = aggregation
         self._member_entity_ids = member_entity_ids
 
         self._attr_name = f"Area {area_name} {label}"
+        self._attr_suggested_object_id = (
+            f"{self._group_prefix}{self._normalized_area_name}_{self._group_key}"
+        )
         self._attr_device_class = device_class
         self._attr_state_class = SensorStateClass.MEASUREMENT
 
@@ -289,6 +357,9 @@ class AreaAggregatedSensor(SensorEntity):
         self._area_name = area_name
         self._normalized_area_name = normalized_area_name
         self._attr_name = f"Area {area_name} {SENSOR_GROUP_DEFS[self._group_key][0]}"
+        self._attr_suggested_object_id = (
+            f"{self._group_prefix}{self._normalized_area_name}_{self._group_key}"
+        )
         self.async_write_ha_state()
 
     @callback
@@ -356,6 +427,8 @@ class AreaAggregatedSensor(SensorEntity):
             return None
         if self._aggregation == Aggregation.MAX:
             return max(values)
+        if self._aggregation == Aggregation.MIN:
+            return min(values)
         return sum(values) / len(values)
 
     @property

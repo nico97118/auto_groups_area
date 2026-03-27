@@ -8,6 +8,7 @@ from homeassistant.helpers.typing import ConfigType
 from .const import (
     DOMAIN,
     PLATFORMS,
+    enabled_platforms,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,8 +32,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
-    # Forward setup to light platform
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    platforms = enabled_platforms(entry.options)
+    await hass.config_entries.async_forward_entry_setups(entry, platforms)
     return True
 
 

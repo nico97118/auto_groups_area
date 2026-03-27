@@ -10,5 +10,30 @@
     "abort": {
       "already_configured": "Cette intégration est déjà configurée."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "description": "Ajuste quels groupes sont créés et comment les valeurs des capteurs sont agrégées.",
+        "data": {
+          "enable_lights": "Créer les groupes de lumières",
+          "enable_binary_sensors": "Créer les groupes binary_sensor",
+          "enable_sensors": "Créer les groupes sensor",
+          "group_prefix": "Préfixe d'identifiant (object id)",
+          "create_when_empty": "Créer les groupes même vides",
+          "include_device_area": "Inclure les entités dont le device est assigné à la zone",
+          "included_areas": "Inclure uniquement ces zones (noms séparés par des virgules)",
+          "excluded_areas": "Exclure ces zones (noms séparés par des virgules)",
+          "enable_binary_sensor_motion": "Groupe binary_sensor : mouvement",
+          "enable_binary_sensor_presence": "Groupe binary_sensor : présence",
+          "enable_binary_sensor_opening": "Groupe binary_sensor : ouverture",
+          "enable_binary_sensor_openclose": "Groupe binary_sensor : porte/fenêtre",
+          "illuminance_aggregation": "Agrégation illuminance",
+          "humidity_aggregation": "Agrégation humidité",
+          "temperature_aggregation": "Agrégation température"
+        }
+      }
+    }
   }
 }

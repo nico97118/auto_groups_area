@@ -84,6 +84,9 @@ The group will automatically reflect:
 
 No configuration is required. Add the integration from the UI and it will create/update area groups automatically.
 
+You can configure behavior from the UI:
+**Settings → Devices & services → Auto Groups by Area → Options**
+
 ## Troubleshooting
 
 Enable debug logging in `configuration.yaml`:

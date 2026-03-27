@@ -31,7 +31,16 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.typing import StateType
 
-from .const import DEFAULT_DOMAINS, DOMAIN
+from .const import (
+    CONF_CREATE_WHEN_EMPTY,
+    CONF_EXCLUDED_AREAS,
+    CONF_GROUP_PREFIX,
+    CONF_INCLUDED_AREAS,
+    CONF_INCLUDE_DEVICE_AREA,
+    DEFAULT_OPTIONS,
+    DOMAIN,
+    merged_options,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,15 +70,16 @@ class AreaLightGroupCoordinator:
         self.config_entry = config_entry
         self.async_add_entities = async_add_entities
 
-        self.domains = DEFAULT_DOMAINS
         self.groups: dict[str, AreaLightGroup] = {}
 
         self._unsub_entity_reg: Callable[[], None] | None = None
         self._unsub_area_reg: Callable[[], None] | None = None
         self._unsub_device_reg: Callable[[], None] | None = None
+        self._options = {**DEFAULT_OPTIONS, **dict(config_entry.options)}
 
     async def async_start(self) -> None:
         """Start coordinator and do initial sync."""
+        self._options = merged_options(self.config_entry.options)
         self._unsub_entity_reg = self.hass.bus.async_listen(
             er.EVENT_ENTITY_REGISTRY_UPDATED, self._handle_entity_registry_updated
         )
@@ -101,14 +111,35 @@ class AreaLightGroupCoordinator:
         name = re.sub(r"[-\s]+", "_", name)
         return name
 
+    def _parse_area_list(self, raw: str) -> set[str]:
+        items = []
+        for part in (raw or "").split(","):
+            part = part.strip()
+            if part:
+                items.append(self._normalize_name(part))
+        return set(items)
+
+    def _area_allowed(self, area_name: str) -> bool:
+        """Return True if area should be managed based on include/exclude options."""
+        included = self._parse_area_list(str(self._options[CONF_INCLUDED_AREAS]))
+        excluded = self._parse_area_list(str(self._options[CONF_EXCLUDED_AREAS]))
+
+        normalized = self._normalize_name(area_name)
+        if included:
+            return normalized in included
+        if excluded:
+            return normalized not in excluded
+        return True
+
     async def async_update_all_groups(self) -> None:
         """(Re)build/update all groups for all areas."""
         entity_reg = er.async_get(self.hass)
         area_reg = ar.async_get(self.hass)
 
         for area in area_reg.async_list_areas():
-            for domain in self.domains:
-                await self._async_update_group_for_area(area, domain, entity_reg)
+            if not self._area_allowed(area.name):
+                continue
+            await self._async_update_group_for_area(area, "light", entity_reg)
 
     async def _async_update_group_for_area(
         self,
@@ -122,6 +153,7 @@ class AreaLightGroupCoordinator:
 
         device_reg = dr.async_get(self.hass)
         member_entity_ids: list[str] = []
+        include_device_area = bool(self._options[CONF_INCLUDE_DEVICE_AREA])
 
         for entry in entity_reg.entities.values():
             if not entry.entity_id.startswith("light."):
@@ -135,16 +167,17 @@ class AreaLightGroupCoordinator:
                 continue
 
             # Entity inherits area from its device assignment
-            if entry.device_id:
+            if include_device_area and entry.device_id:
                 device = device_reg.devices.get(entry.device_id)
                 if device is not None and device.area_id == area.id:
                     member_entity_ids.append(entry.entity_id)
 
         unique_id = f"{DOMAIN}_{domain}_{area.id}"
         normalized_area_name = self._normalize_name(area.name)
+        group_prefix = str(self._options[CONF_GROUP_PREFIX] or "")
+        create_when_empty = bool(self._options[CONF_CREATE_WHEN_EMPTY])
 
-        # Avoid creating empty groups. If a group already exists and becomes empty, remove it.
-        if not member_entity_ids:
+        if not member_entity_ids and not create_when_empty:
             existing = self.groups.pop(unique_id, None)
             if existing is not None:
                 _LOGGER.info("Removing empty light group for area '%s'", area.name)
@@ -162,6 +195,7 @@ class AreaLightGroupCoordinator:
             area_id=area.id,
             area_name=area.name,
             normalized_area_name=normalized_area_name,
+            group_prefix=group_prefix,
             member_entity_ids=member_entity_ids,
         )
         self.groups[unique_id] = group
@@ -232,8 +266,9 @@ class AreaLightGroupCoordinator:
             area = area_reg.async_get_area(area_id)
             if area is None:
                 continue
-            for domain in self.domains:
-                await self._async_update_group_for_area(area, domain, entity_reg)
+            if not self._area_allowed(area.name):
+                continue
+            await self._async_update_group_for_area(area, "light", entity_reg)
 
     async def _async_remove_area(self, area_id: str) -> None:
         """Remove group entities for an area that was deleted."""
@@ -260,16 +295,19 @@ class AreaLightGroup(LightEntity):
         area_id: str,
         area_name: str,
         normalized_area_name: str,
+        group_prefix: str,
         member_entity_ids: list[str],
     ) -> None:
         self._attr_unique_id = unique_id
         self._area_id = area_id
         self._area_name = area_name
         self._normalized_area_name = normalized_area_name
+        self._group_prefix = group_prefix
         self._member_entity_ids: list[str] = member_entity_ids
 
         # Using "Area <name>" produces entity_id like "light.area_<name>" after slugify.
         self._attr_name = f"Area {area_name}"
+        self._attr_suggested_object_id = f"{self._group_prefix}{self._normalized_area_name}"
 
         self._unsub_member_state: Callable[[], None] | None = None
 
@@ -288,6 +326,7 @@ class AreaLightGroup(LightEntity):
         self._area_name = area_name
         self._normalized_area_name = normalized_area_name
         self._attr_name = f"Area {area_name}"
+        self._attr_suggested_object_id = f"{self._group_prefix}{self._normalized_area_name}"
         self.async_write_ha_state()
 
     @callback
