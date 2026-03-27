@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Info logs when creating `sensor` and `binary_sensor` area groups (e.g. `humidity`, `illuminance`, `motion`, `openclose`).
+### Changed
+- Defer initial `sensor` and `binary_sensor` scan until `EVENT_HOMEASSISTANT_STARTED` to reduce startup timing issues.
 
 ## [0.8.0-beta.1] - 2026-03-27
 ### Added
