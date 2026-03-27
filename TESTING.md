@@ -30,14 +30,15 @@ Tests live under `tests/`:
 
 ## Running tests locally
 
+Home Assistant does not support all Python versions. Use a supported Python version (typically Python 3.12).
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements_test.txt
-pytest
+python -m pytest
 ```
 
 ## CI
 
 GitHub Actions runs `pytest` on every push and pull request via `.github/workflows/tests.yml`.
-

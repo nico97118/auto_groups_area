@@ -15,8 +15,10 @@ async def test_binary_sensor_openclose_on_if_any_on(hass: HomeAssistant, setup_i
     area = area_reg.async_create("Entrée")
 
     entity_reg = er.async_get(hass)
-    entity_reg.async_get_or_create("binary_sensor", "demo", "door", area_id=area.id)
-    entity_reg.async_get_or_create("binary_sensor", "demo", "window", area_id=area.id)
+    door = entity_reg.async_get_or_create("binary_sensor", "demo", "door")
+    window = entity_reg.async_get_or_create("binary_sensor", "demo", "window")
+    entity_reg.async_update_entity(door.entity_id, area_id=area.id)
+    entity_reg.async_update_entity(window.entity_id, area_id=area.id)
 
     hass.states.async_set("binary_sensor.demo_door", "off", {"device_class": "door"})
     hass.states.async_set("binary_sensor.demo_window", "on", {"device_class": "window"})

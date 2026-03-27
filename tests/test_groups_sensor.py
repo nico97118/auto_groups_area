@@ -22,8 +22,10 @@ async def _setup_area_with_sensors(hass: HomeAssistant, area_name: str) -> str:
     area = area_reg.async_create(area_name)
 
     entity_reg = er.async_get(hass)
-    entity_reg.async_get_or_create("sensor", "demo", "t1", area_id=area.id)
-    entity_reg.async_get_or_create("sensor", "demo", "t2", area_id=area.id)
+    t1 = entity_reg.async_get_or_create("sensor", "demo", "t1")
+    t2 = entity_reg.async_get_or_create("sensor", "demo", "t2")
+    entity_reg.async_update_entity(t1.entity_id, area_id=area.id)
+    entity_reg.async_update_entity(t2.entity_id, area_id=area.id)
 
     hass.states.async_set("sensor.demo_t1", "20", {"device_class": "temperature", "unit_of_measurement": "°C"})
     hass.states.async_set("sensor.demo_t2", "22", {"device_class": "temperature", "unit_of_measurement": "°C"})
@@ -31,12 +33,12 @@ async def _setup_area_with_sensors(hass: HomeAssistant, area_name: str) -> str:
     return area.id
 
 
-async def test_sensor_temperature_mean(hass: HomeAssistant, config_entry) -> None:
+async def test_sensor_temperature_mean(hass: HomeAssistant, make_config_entry) -> None:
     await async_setup_component(hass, "sensor", {})
 
-    config_entry.options = {CONF_HUMIDITY_AGGREGATION: AGGREGATION_MEAN}
-    config_entry.add_to_hass(hass)
-    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    entry = make_config_entry(options={CONF_HUMIDITY_AGGREGATION: AGGREGATION_MEAN})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
     await _setup_area_with_sensors(hass, "Salon")
@@ -49,20 +51,22 @@ async def test_sensor_temperature_mean(hass: HomeAssistant, config_entry) -> Non
     assert float(state.state) == pytest.approx(21.0)
 
 
-async def test_sensor_illuminance_max(hass: HomeAssistant, config_entry) -> None:
+async def test_sensor_illuminance_max(hass: HomeAssistant, make_config_entry) -> None:
     await async_setup_component(hass, "sensor", {})
 
-    config_entry.options = {CONF_ILLUMINANCE_AGGREGATION: AGGREGATION_MAX}
-    config_entry.add_to_hass(hass)
-    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    entry = make_config_entry(options={CONF_ILLUMINANCE_AGGREGATION: AGGREGATION_MAX})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
     area_reg = ar.async_get(hass)
     area = area_reg.async_create("Bureau")
 
     entity_reg = er.async_get(hass)
-    entity_reg.async_get_or_create("sensor", "demo", "lux1", area_id=area.id)
-    entity_reg.async_get_or_create("sensor", "demo", "lux2", area_id=area.id)
+    lux1 = entity_reg.async_get_or_create("sensor", "demo", "lux1")
+    lux2 = entity_reg.async_get_or_create("sensor", "demo", "lux2")
+    entity_reg.async_update_entity(lux1.entity_id, area_id=area.id)
+    entity_reg.async_update_entity(lux2.entity_id, area_id=area.id)
 
     hass.states.async_set("sensor.demo_lux1", "100", {"device_class": "illuminance", "unit_of_measurement": "lx"})
     hass.states.async_set("sensor.demo_lux2", "250", {"device_class": "illuminance", "unit_of_measurement": "lx"})
@@ -75,20 +79,22 @@ async def test_sensor_illuminance_max(hass: HomeAssistant, config_entry) -> None
     assert float(state.state) == 250.0
 
 
-async def test_sensor_last_uses_latest_changed(hass: HomeAssistant, config_entry) -> None:
+async def test_sensor_last_uses_latest_changed(hass: HomeAssistant, make_config_entry) -> None:
     await async_setup_component(hass, "sensor", {})
 
-    config_entry.options = {CONF_HUMIDITY_AGGREGATION: AGGREGATION_LAST}
-    config_entry.add_to_hass(hass)
-    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    entry = make_config_entry(options={CONF_HUMIDITY_AGGREGATION: AGGREGATION_LAST})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
 
     area_reg = ar.async_get(hass)
     area = area_reg.async_create("Salle de bain")
 
     entity_reg = er.async_get(hass)
-    entity_reg.async_get_or_create("sensor", "demo", "h1", area_id=area.id)
-    entity_reg.async_get_or_create("sensor", "demo", "h2", area_id=area.id)
+    h1 = entity_reg.async_get_or_create("sensor", "demo", "h1")
+    h2 = entity_reg.async_get_or_create("sensor", "demo", "h2")
+    entity_reg.async_update_entity(h1.entity_id, area_id=area.id)
+    entity_reg.async_update_entity(h2.entity_id, area_id=area.id)
 
     hass.states.async_set("sensor.demo_h1", "40", {"device_class": "humidity", "unit_of_measurement": "%"})
     hass.states.async_set("sensor.demo_h2", "45", {"device_class": "humidity", "unit_of_measurement": "%"})

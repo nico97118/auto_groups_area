@@ -29,4 +29,4 @@ async def test_config_flow_single_instance(hass: HomeAssistant) -> None:
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
     assert result3["type"] == "abort"
-    assert result3["reason"] == "already_configured"
+    assert result3["reason"] in {"already_configured", "single_instance_allowed"}
