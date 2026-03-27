@@ -109,6 +109,11 @@ You can configure behavior from the UI:
 
 - `auto_groups_area.reload`: Force a full resynchronization of all area groups managed by this integration.
 
+## Diagnostics
+
+Home Assistant diagnostics are available for this integration (config entry and device diagnostics) from:
+**Settings → Devices & services → Auto Groups by Area → Download diagnostics**.
+
 ## Troubleshooting
 
 Enable debug logging in `configuration.yaml`:
