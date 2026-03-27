@@ -27,11 +27,13 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.typing import StateType
 
 from .const import (
+    AGGREGATION_LAST,
     AGGREGATION_MAX,
     AGGREGATION_MEAN,
     AGGREGATION_MIN,
     CONF_CREATE_WHEN_EMPTY,
     CONF_EXCLUDED_AREAS,
+    CONF_EXCLUDED_ENTITIES,
     CONF_GROUP_PREFIX,
     CONF_HUMIDITY_AGGREGATION,
     CONF_ILLUMINANCE_AGGREGATION,
@@ -50,6 +52,7 @@ class Aggregation(str):
     MAX = "max"
     MEAN = "mean"
     MIN = "min"
+    LAST = "last"
 
 
 SENSOR_GROUP_DEFS: dict[str, tuple[str, SensorDeviceClass, Aggregation]] = {
@@ -122,23 +125,43 @@ class AreaSensorGroupCoordinator:
         name = re.sub(r"[-\s]+", "_", name)
         return name
 
-    def _parse_area_list(self, raw: str) -> set[str]:
-        items = []
+    def _parse_area_name_list(self, raw: str) -> set[str]:
+        items: list[str] = []
         for part in (raw or "").split(","):
             part = part.strip()
             if part:
                 items.append(self._normalize_name(part))
         return set(items)
 
-    def _area_allowed(self, area_name: str) -> bool:
-        included = self._parse_area_list(str(self._options[CONF_INCLUDED_AREAS]))
-        excluded = self._parse_area_list(str(self._options[CONF_EXCLUDED_AREAS]))
+    def _parse_area_id_list(self, raw: object) -> set[str]:
+        if isinstance(raw, list):
+            return {str(v) for v in raw if isinstance(v, str) and v}
+        if isinstance(raw, str):
+            return set()
+        return set()
 
-        normalized = self._normalize_name(area_name)
-        if included:
-            return normalized in included
-        if excluded:
-            return normalized not in excluded
+    def _area_allowed(self, area: ar.AreaEntry) -> bool:
+        included_raw = self._options[CONF_INCLUDED_AREAS]
+        excluded_raw = self._options[CONF_EXCLUDED_AREAS]
+
+        included_ids = self._parse_area_id_list(included_raw)
+        excluded_ids = self._parse_area_id_list(excluded_raw)
+        if included_ids:
+            return area.id in included_ids
+        if excluded_ids:
+            return area.id not in excluded_ids
+
+        included_names = (
+            self._parse_area_name_list(included_raw) if isinstance(included_raw, str) else set()
+        )
+        excluded_names = (
+            self._parse_area_name_list(excluded_raw) if isinstance(excluded_raw, str) else set()
+        )
+        normalized = self._normalize_name(area.name)
+        if included_names:
+            return normalized in included_names
+        if excluded_names:
+            return normalized not in excluded_names
         return True
 
     def _aggregation_for_group(self, group_key: str) -> Aggregation:
@@ -155,6 +178,8 @@ class AreaSensorGroupCoordinator:
             return Aggregation.MAX
         if raw == AGGREGATION_MIN:
             return Aggregation.MIN
+        if raw == AGGREGATION_LAST:
+            return Aggregation.LAST
         return Aggregation.MEAN
 
     async def async_update_all_groups(self) -> None:
@@ -162,7 +187,7 @@ class AreaSensorGroupCoordinator:
         area_reg = ar.async_get(self.hass)
 
         for area in area_reg.async_list_areas():
-            if not self._area_allowed(area.name):
+            if not self._area_allowed(area):
                 continue
             await self._async_update_groups_for_area(area, entity_reg)
 
@@ -175,11 +200,19 @@ class AreaSensorGroupCoordinator:
         include_device_area = bool(self._options[CONF_INCLUDE_DEVICE_AREA])
         create_when_empty = bool(self._options[CONF_CREATE_WHEN_EMPTY])
         group_prefix = str(self._options[CONF_GROUP_PREFIX] or "")
+        excluded_entities_raw = self._options.get(CONF_EXCLUDED_ENTITIES, [])
+        excluded_entities = (
+            set(excluded_entities_raw)
+            if isinstance(excluded_entities_raw, list)
+            else set()
+        )
 
         def _area_entity_ids(device_class: SensorDeviceClass) -> list[str]:
             entity_ids: list[str] = []
             for entry in entity_reg.entities.values():
                 if not entry.entity_id.startswith("sensor."):
+                    continue
+                if entry.entity_id in excluded_entities:
                     continue
                 if entry.disabled_by is not None:
                     continue
@@ -259,7 +292,7 @@ class AreaSensorGroupCoordinator:
             area = area_reg.async_get_area(area_id)
             if area is None:
                 continue
-            if not self._area_allowed(area.name):
+            if not self._area_allowed(area):
                 continue
             await self._async_update_groups_for_area(area, entity_reg)
 
@@ -422,6 +455,23 @@ class AreaAggregatedSensor(SensorEntity):
 
     @property
     def native_value(self) -> float | None:
+        if self._aggregation == Aggregation.LAST:
+            latest_value: float | None = None
+            latest_changed: float | None = None
+            for state in self._member_states():
+                if state.state in {"unknown", "unavailable"}:
+                    continue
+                try:
+                    value = float(state.state)
+                except (TypeError, ValueError):
+                    continue
+                changed = getattr(state, "last_changed", None)
+                ts = changed.timestamp() if changed is not None else None
+                if ts is None or latest_changed is None or ts > latest_changed:
+                    latest_changed = ts
+                    latest_value = value
+            return latest_value
+
         values = self._member_values()
         if not values:
             return None

@@ -23,15 +23,34 @@
           "group_prefix": "Entity id prefix (object id)",
           "create_when_empty": "Create groups even when empty",
           "include_device_area": "Include entities whose device is assigned to the area",
-          "included_areas": "Only include these areas (comma-separated names)",
-          "excluded_areas": "Exclude these areas (comma-separated names)",
-          "enable_binary_sensor_motion": "Binary sensor group: motion",
-          "enable_binary_sensor_presence": "Binary sensor group: presence",
-          "enable_binary_sensor_opening": "Binary sensor group: opening",
-          "enable_binary_sensor_openclose": "Binary sensor group: door/window",
+          "included_areas": "Only include these areas",
+          "excluded_areas": "Exclude these areas"
+        }
+      },
+      "binary_sensors": {
+        "title": "Binary Sensors",
+        "description": "Choose which binary_sensor groups to create (only applies if binary_sensor groups are enabled).",
+        "data": {
+          "enable_binary_sensor_motion": "Group: motion",
+          "enable_binary_sensor_presence": "Group: presence",
+          "enable_binary_sensor_opening": "Group: opening",
+          "enable_binary_sensor_openclose": "Group: door/window"
+        }
+      },
+      "sensors": {
+        "title": "Sensors",
+        "description": "Choose how values are aggregated (only applies if sensor groups are enabled).",
+        "data": {
           "illuminance_aggregation": "Illuminance aggregation",
           "humidity_aggregation": "Humidity aggregation",
           "temperature_aggregation": "Temperature aggregation"
+        }
+      },
+      "advanced": {
+        "title": "Advanced",
+        "description": "Advanced filters.",
+        "data": {
+          "excluded_entities": "Excluded entities"
         }
       }
     }

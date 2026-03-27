@@ -87,6 +87,17 @@ No configuration is required. Add the integration from the UI and it will create
 You can configure behavior from the UI:
 **Settings → Devices & services → Auto Groups by Area → Options**
 
+### Options
+
+- **Create light groups / sensor groups / binary_sensor groups**: Enable or disable group creation by platform.
+- **Entity id prefix (object id)**: Prefix used to build the entity_id (default: `area_`).
+- **Create groups even when empty**: If disabled (default), empty groups are not created and existing groups are removed when they become empty.
+- **Include entities whose device is assigned to the area**: Also include entities that inherit the area from their device assignment (recommended).
+- **Only include these areas / Exclude these areas**: Multi-select of areas to include or exclude.
+- **Binary Sensors**: Enable/disable each binary_sensor group type (motion/presence/opening/door-window).
+- **Sensors**: Choose aggregation per sensor type (`max`, `mean`, `min`, `last`).
+- **Advanced → Excluded entities**: Multi-select entities that will never be included in any group.
+
 ## Troubleshooting
 
 Enable debug logging in `configuration.yaml`:

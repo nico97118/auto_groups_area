@@ -23,15 +23,34 @@
           "group_prefix": "Préfixe d'identifiant (object id)",
           "create_when_empty": "Créer les groupes même vides",
           "include_device_area": "Inclure les entités dont le device est assigné à la zone",
-          "included_areas": "Inclure uniquement ces zones (noms séparés par des virgules)",
-          "excluded_areas": "Exclure ces zones (noms séparés par des virgules)",
-          "enable_binary_sensor_motion": "Groupe binary_sensor : mouvement",
-          "enable_binary_sensor_presence": "Groupe binary_sensor : présence",
-          "enable_binary_sensor_opening": "Groupe binary_sensor : ouverture",
-          "enable_binary_sensor_openclose": "Groupe binary_sensor : porte/fenêtre",
+          "included_areas": "Inclure uniquement ces zones",
+          "excluded_areas": "Exclure ces zones"
+        }
+      },
+      "binary_sensors": {
+        "title": "Binary Sensors",
+        "description": "Choisis quels groupes binary_sensor créer (uniquement si les groupes binary_sensor sont activés).",
+        "data": {
+          "enable_binary_sensor_motion": "Groupe : mouvement",
+          "enable_binary_sensor_presence": "Groupe : présence",
+          "enable_binary_sensor_opening": "Groupe : ouverture",
+          "enable_binary_sensor_openclose": "Groupe : porte/fenêtre"
+        }
+      },
+      "sensors": {
+        "title": "Sensors",
+        "description": "Choisis comment les valeurs sont agrégées (uniquement si les groupes sensor sont activés).",
+        "data": {
           "illuminance_aggregation": "Agrégation illuminance",
           "humidity_aggregation": "Agrégation humidité",
           "temperature_aggregation": "Agrégation température"
+        }
+      },
+      "advanced": {
+        "title": "Avancé",
+        "description": "Filtres avancés.",
+        "data": {
+          "excluded_entities": "Entités exclues"
         }
       }
     }

@@ -34,6 +34,7 @@ from homeassistant.helpers.typing import StateType
 from .const import (
     CONF_CREATE_WHEN_EMPTY,
     CONF_EXCLUDED_AREAS,
+    CONF_EXCLUDED_ENTITIES,
     CONF_GROUP_PREFIX,
     CONF_INCLUDED_AREAS,
     CONF_INCLUDE_DEVICE_AREA,
@@ -111,24 +112,47 @@ class AreaLightGroupCoordinator:
         name = re.sub(r"[-\s]+", "_", name)
         return name
 
-    def _parse_area_list(self, raw: str) -> set[str]:
-        items = []
+    def _parse_area_name_list(self, raw: str) -> set[str]:
+        items: list[str] = []
         for part in (raw or "").split(","):
             part = part.strip()
             if part:
                 items.append(self._normalize_name(part))
         return set(items)
 
-    def _area_allowed(self, area_name: str) -> bool:
-        """Return True if area should be managed based on include/exclude options."""
-        included = self._parse_area_list(str(self._options[CONF_INCLUDED_AREAS]))
-        excluded = self._parse_area_list(str(self._options[CONF_EXCLUDED_AREAS]))
+    def _parse_area_id_list(self, raw: object) -> set[str]:
+        if isinstance(raw, list):
+            return {str(v) for v in raw if isinstance(v, str) and v}
+        if isinstance(raw, str):
+            # Backward compatibility (older config stored comma-separated names)
+            return set()
+        return set()
 
-        normalized = self._normalize_name(area_name)
-        if included:
-            return normalized in included
-        if excluded:
-            return normalized not in excluded
+    def _area_allowed(self, area: ar.AreaEntry) -> bool:
+        """Return True if area should be managed based on include/exclude options."""
+        included_raw = self._options[CONF_INCLUDED_AREAS]
+        excluded_raw = self._options[CONF_EXCLUDED_AREAS]
+
+        included_ids = self._parse_area_id_list(included_raw)
+        excluded_ids = self._parse_area_id_list(excluded_raw)
+
+        if included_ids:
+            return area.id in included_ids
+        if excluded_ids:
+            return area.id not in excluded_ids
+
+        # Backward compatibility: comma-separated area *names*
+        included_names = (
+            self._parse_area_name_list(included_raw) if isinstance(included_raw, str) else set()
+        )
+        excluded_names = (
+            self._parse_area_name_list(excluded_raw) if isinstance(excluded_raw, str) else set()
+        )
+        normalized = self._normalize_name(area.name)
+        if included_names:
+            return normalized in included_names
+        if excluded_names:
+            return normalized not in excluded_names
         return True
 
     async def async_update_all_groups(self) -> None:
@@ -137,7 +161,7 @@ class AreaLightGroupCoordinator:
         area_reg = ar.async_get(self.hass)
 
         for area in area_reg.async_list_areas():
-            if not self._area_allowed(area.name):
+            if not self._area_allowed(area):
                 continue
             await self._async_update_group_for_area(area, "light", entity_reg)
 
@@ -154,9 +178,17 @@ class AreaLightGroupCoordinator:
         device_reg = dr.async_get(self.hass)
         member_entity_ids: list[str] = []
         include_device_area = bool(self._options[CONF_INCLUDE_DEVICE_AREA])
+        excluded_entities_raw = self._options.get(CONF_EXCLUDED_ENTITIES, [])
+        excluded_entities = (
+            set(excluded_entities_raw)
+            if isinstance(excluded_entities_raw, list)
+            else set()
+        )
 
         for entry in entity_reg.entities.values():
             if not entry.entity_id.startswith("light."):
+                continue
+            if entry.entity_id in excluded_entities:
                 continue
             if entry.disabled_by is not None:
                 continue
@@ -266,7 +298,7 @@ class AreaLightGroupCoordinator:
             area = area_reg.async_get_area(area_id)
             if area is None:
                 continue
-            if not self._area_allowed(area.name):
+            if not self._area_allowed(area):
                 continue
             await self._async_update_group_for_area(area, "light", entity_reg)
 

@@ -19,6 +19,7 @@ CONF_CREATE_WHEN_EMPTY = "create_when_empty"
 CONF_INCLUDE_DEVICE_AREA = "include_device_area"
 CONF_INCLUDED_AREAS = "included_areas"
 CONF_EXCLUDED_AREAS = "excluded_areas"
+CONF_EXCLUDED_ENTITIES = "excluded_entities"
 
 CONF_ENABLE_BS_MOTION = "enable_binary_sensor_motion"
 CONF_ENABLE_BS_PRESENCE = "enable_binary_sensor_presence"
@@ -32,6 +33,7 @@ CONF_TEMPERATURE_AGGREGATION = "temperature_aggregation"
 AGGREGATION_MAX = "max"
 AGGREGATION_MEAN = "mean"
 AGGREGATION_MIN = "min"
+AGGREGATION_LAST = "last"
 
 DEFAULT_OPTIONS: dict[str, object] = {
     CONF_ENABLE_LIGHTS: True,
@@ -40,8 +42,11 @@ DEFAULT_OPTIONS: dict[str, object] = {
     CONF_GROUP_PREFIX: GROUP_PREFIX,
     CONF_CREATE_WHEN_EMPTY: False,
     CONF_INCLUDE_DEVICE_AREA: True,
-    CONF_INCLUDED_AREAS: "",
-    CONF_EXCLUDED_AREAS: "",
+    # Stored as a list of area_id (via UI selectors). Backward compatible with
+    # older string-based configs in the runtime filters.
+    CONF_INCLUDED_AREAS: [],
+    CONF_EXCLUDED_AREAS: [],
+    CONF_EXCLUDED_ENTITIES: [],
     CONF_ENABLE_BS_MOTION: True,
     CONF_ENABLE_BS_PRESENCE: True,
     CONF_ENABLE_BS_OPENING: True,
