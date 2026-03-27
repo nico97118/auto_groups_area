@@ -518,19 +518,26 @@ class AreaLightGroup(LightEntity):
     @property
     def color_mode(self) -> ColorMode | None:
         """Expose a best-effort current color mode."""
+        supported = self.supported_color_modes
         for state in self._member_states():
             if state.state != "on":
                 continue
             raw = state.attributes.get(ATTR_COLOR_MODE)
             if isinstance(raw, str):
                 try:
-                    return ColorMode(raw)
+                    mode = ColorMode(raw)
                 except Exception:  # pragma: no cover
                     continue
+                # Home Assistant validates color_mode against supported_color_modes.
+                # Some member lights (e.g. dimmable-only) may currently report
+                # ColorMode.BRIGHTNESS even if the group exposes only color modes
+                # (RGB/COLOR_TEMP). In that case, ignore the member-reported mode
+                # and fall back to a stable supported group mode.
+                if mode in supported:
+                    return mode
 
         # Fallback: if members don't expose ATTR_COLOR_MODE (common for ON/OFF only
         # lights or for some platforms), pick a stable mode from supported modes.
-        supported = self.supported_color_modes
         if not supported:
             return None
 

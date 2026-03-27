@@ -137,3 +137,45 @@ async def test_light_include_device_area_toggle(hass: HomeAssistant, make_config
 
     # Should NOT create group because entity isn't directly assigned to area and include_device_area is disabled.
     assert hass.states.get("light.area_garage") is None
+
+
+@pytest.mark.usefixtures("setup_integration")
+async def test_light_group_color_mode_is_supported(hass: HomeAssistant) -> None:
+    """Ensure group color_mode never violates supported_color_modes.
+
+    This can happen with mixed member lights where a dimmable-only light reports
+    ColorMode.BRIGHTNESS while the group exposes only RGB/COLOR_TEMP modes.
+    """
+    area_reg = ar.async_get(hass)
+    area = area_reg.async_create("Bureau")
+
+    entity_reg = er.async_get(hass)
+    dim = entity_reg.async_get_or_create("light", "demo", "dim")
+    rgb = entity_reg.async_get_or_create("light", "demo", "rgb")
+    entity_reg.async_update_entity(dim.entity_id, area_id=area.id)
+    entity_reg.async_update_entity(rgb.entity_id, area_id=area.id)
+
+    hass.states.async_set(
+        "light.demo_dim",
+        "on",
+        {
+            "supported_color_modes": ["brightness"],
+            "color_mode": "brightness",
+            "brightness": 128,
+        },
+    )
+    hass.states.async_set(
+        "light.demo_rgb",
+        "off",
+        {"supported_color_modes": ["rgb", "color_temp"], "color_mode": "rgb"},
+    )
+
+    await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("light.area_bureau")
+    assert state is not None
+
+    supported = state.attributes.get("supported_color_modes")
+    assert isinstance(supported, (list, tuple, set))
+    assert state.attributes.get("color_mode") in set(supported)
