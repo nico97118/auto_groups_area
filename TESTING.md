@@ -49,6 +49,16 @@ ruff check .
 ruff format --check .
 ```
 
+## pre-commit hook (optional)
+
+To auto-run lint/format on every commit:
+
+```bash
+pip install -r requirements_lint.txt
+pre-commit install
+pre-commit run --all-files
+```
+
 ## CI
 
 GitHub Actions runs `pytest` on every push and pull request via `.github/workflows/tests.yml`.
