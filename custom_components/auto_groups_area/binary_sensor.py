@@ -264,6 +264,12 @@ class AreaBinarySensorGroupCoordinator:
             )
             self.groups[unique_id] = group
             self.async_add_entities([group], update_before_add=True)
+            _LOGGER.info(
+                "Created %s binary_sensor group for area '%s' with %d member(s)",
+                group_key,
+                area.name,
+                len(member_entity_ids),
+            )
 
     def _is_matching_device_class(
         self, entity_id: str, device_classes: set[BinarySensorDeviceClass]

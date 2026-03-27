@@ -105,7 +105,7 @@ Home Assistant diagnostics are available for this integration (config entry and 
 
 ## Troubleshooting
 
-Enable debug logging in `configuration.yaml`:
+Enable logging for this integration in `configuration.yaml`:
 
 ```yaml
 logger:
@@ -116,8 +116,9 @@ logger:
 
 Check the logs for messages like:
 ```
-Area 'Salon' (area_id): found 3 light entities
-Creating/updating group light.area_salon with 3 entities
+Created light group for area 'Salon' with 5 member(s)
+Created humidity sensor group for area 'Salle de bain' with 2 member(s)
+Created motion binary_sensor group for area 'Entrée' with 1 member(s)
 ```
 
 ## Future Enhancements
