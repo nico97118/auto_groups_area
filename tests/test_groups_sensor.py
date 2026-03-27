@@ -137,6 +137,36 @@ async def test_sensor_last_uses_latest_changed(
     assert float(group2.state) == 55.0
 
 
+async def test_sensor_humidity_group_created_when_state_appears_later(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """Ensure sensor groups can be created when member states are restored later."""
+    await async_setup_component(hass, "sensor", {})
+
+    area_reg = ar.async_get(hass)
+    area = area_reg.async_create("Bureau")
+
+    entity_reg = er.async_get(hass)
+    hum = entity_reg.async_get_or_create("sensor", "demo", "hum")
+    entity_reg.async_update_entity(hum.entity_id, area_id=area.id)
+
+    # No initial state => should not create the group yet (default create_when_empty=False).
+    await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.area_bureau_humidity") is None
+
+    # Once the state appears, the coordinator should resync the area and create the group.
+    hass.states.async_set(
+        "sensor.demo_hum",
+        "40",
+        {"device_class": "humidity", "unit_of_measurement": "%"},
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.area_bureau_humidity")
+    assert state is not None
+
+
 @pytest.mark.usefixtures("setup_integration")
 async def test_sensor_groups_use_registry_device_class_when_state_missing(
     hass: HomeAssistant,

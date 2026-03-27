@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial platform sync is now scheduled after `EVENT_HOMEASSISTANT_STARTED` when Home Assistant is still starting, to avoid missing groups due to startup timing.
 ### Fixed
 - Sensor and binary_sensor group membership now prefers device class from the entity registry (fallback to state) to avoid missing groups during startup when states are not yet available.
+- Sensor groups now also track entities with pending/missing `device_class` and resync when their state appears (similar to binary_sensor).
 
 ## [0.8.0-beta.1] - 2026-03-27
 ### Added

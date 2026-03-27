@@ -95,6 +95,8 @@ class AreaSensorGroupCoordinator:
         self._unsub_area_reg: Callable[[], None] | None = None
         self._unsub_device_reg: Callable[[], None] | None = None
         self._unsub_ha_started: Callable[[], None] | None = None
+        self._unsub_pending_states: Callable[[], None] | None = None
+        self._pending_device_class_entity_ids: set[str] = set()
         self._options = {**DEFAULT_OPTIONS, **dict(config_entry.options)}
 
     async def async_start(self) -> None:
@@ -160,6 +162,10 @@ class AreaSensorGroupCoordinator:
         if self._unsub_ha_started is not None:
             self._unsub_ha_started()
             self._unsub_ha_started = None
+        if self._unsub_pending_states is not None:
+            self._unsub_pending_states()
+            self._unsub_pending_states = None
+        self._pending_device_class_entity_ids.clear()
 
     @callback
     def _handle_homeassistant_started(self, _: Event) -> None:
@@ -233,6 +239,83 @@ class AreaSensorGroupCoordinator:
             return Aggregation.LAST
         return Aggregation.MEAN
 
+    def _raw_device_class(self, entry: er.RegistryEntry) -> str | None:
+        raw = getattr(entry, "original_device_class", None) or getattr(
+            entry, "device_class", None
+        )
+        if isinstance(raw, str) and raw:
+            return raw
+
+        state = self.hass.states.get(entry.entity_id)
+        if state is None:
+            return None
+        raw_state = state.attributes.get("device_class")
+        return raw_state if isinstance(raw_state, str) and raw_state else None
+
+    def _parse_device_class(self, raw: str) -> SensorDeviceClass | None:
+        try:
+            return SensorDeviceClass(raw)
+        except Exception:
+            return None
+
+    def _area_id_for_entry(self, entry: er.RegistryEntry) -> str | None:
+        if entry.area_id:
+            return entry.area_id
+        if bool(self._options[CONF_INCLUDE_DEVICE_AREA]) and entry.device_id:
+            device_reg = dr.async_get(self.hass)
+            device = device_reg.devices.get(entry.device_id)
+            return device.area_id if device is not None else None
+        return None
+
+    @callback
+    def _pending_state_changed(self, event: Event) -> None:
+        entity_id: str | None = event.data.get("entity_id")
+        if not entity_id:
+            return
+        entity_reg = er.async_get(self.hass)
+        entry = entity_reg.async_get(entity_id)
+        if entry is None:
+            return
+
+        raw = self._raw_device_class(entry)
+        if isinstance(raw, str) and self._parse_device_class(raw) is not None:
+            self._pending_device_class_entity_ids.discard(entity_id)
+            _LOGGER.debug(
+                "Pending sensor device_class resolved (entry_id=%s, entity_id=%s, remaining=%d)",
+                self.config_entry.entry_id,
+                entity_id,
+                len(self._pending_device_class_entity_ids),
+            )
+
+        area_id = self._area_id_for_entry(entry)
+        if area_id:
+            self.hass.async_create_task(self._async_update_areas({area_id}))
+        else:
+            self.hass.async_create_task(self.async_update_all_groups())
+
+        if not self._pending_device_class_entity_ids and self._unsub_pending_states:
+            self._unsub_pending_states()
+            self._unsub_pending_states = None
+
+    def _refresh_pending_subscription(self) -> None:
+        if self._unsub_pending_states is not None:
+            self._unsub_pending_states()
+            self._unsub_pending_states = None
+
+        if not self.hass or not self._pending_device_class_entity_ids:
+            return
+
+        _LOGGER.debug(
+            "Subscribing to pending sensor states (entry_id=%s, entities=%d)",
+            self.config_entry.entry_id,
+            len(self._pending_device_class_entity_ids),
+        )
+        self._unsub_pending_states = async_track_state_change_event(
+            self.hass,
+            list(self._pending_device_class_entity_ids),
+            self._pending_state_changed,
+        )
+
     async def async_update_all_groups(self) -> None:
         entity_reg = er.async_get(self.hass)
         area_reg = ar.async_get(self.hass)
@@ -240,6 +323,7 @@ class AreaSensorGroupCoordinator:
         areas = list(area_reg.async_list_areas())
         created = updated = removed = 0
         allowed = 0
+        pending_device_class: set[str] = set()
         _LOGGER.debug(
             "Sync sensor groups start (entry_id=%s, areas_total=%d)",
             self.config_entry.entry_id,
@@ -251,7 +335,9 @@ class AreaSensorGroupCoordinator:
                 continue
             allowed += 1
             try:
-                c, u, r = await self._async_update_groups_for_area(area, entity_reg)
+                c, u, r = await self._async_update_groups_for_area(
+                    area, entity_reg, pending_device_class
+                )
             except Exception:
                 _LOGGER.exception(
                     "Failed to sync sensor groups for area '%s' (entry_id=%s)",
@@ -262,6 +348,9 @@ class AreaSensorGroupCoordinator:
             created += c
             updated += u
             removed += r
+
+        self._pending_device_class_entity_ids = pending_device_class
+        self._refresh_pending_subscription()
 
         _LOGGER.info(
             "Sync sensor groups done (entry_id=%s, areas_allowed=%d/%d, created=%d, updated=%d, removed=%d)",
@@ -277,6 +366,7 @@ class AreaSensorGroupCoordinator:
         self,
         area: ar.AreaEntry,
         entity_reg: er.EntityRegistry,
+        pending_device_class: set[str] | None = None,
     ) -> tuple[int, int, int]:
         device_reg = dr.async_get(self.hass)
         include_device_area = bool(self._options[CONF_INCLUDE_DEVICE_AREA])
@@ -289,28 +379,48 @@ class AreaSensorGroupCoordinator:
             else set()
         )
 
-        def _area_entity_ids(device_class: SensorDeviceClass) -> list[str]:
-            entity_ids: list[str] = []
-            for entry in entity_reg.entities.values():
-                if not entry.entity_id.startswith("sensor."):
-                    continue
-                if entry.entity_id in excluded_entities:
-                    continue
-                if entry.disabled_by is not None:
-                    continue
+        candidate_entries: list[er.RegistryEntry] = []
+        for entry in entity_reg.entities.values():
+            if not entry.entity_id.startswith("sensor."):
+                continue
+            if entry.entity_id in excluded_entities:
+                continue
+            if entry.disabled_by is not None:
+                continue
 
-                if entry.area_id == area.id:
-                    if self._is_matching_device_class(entry, device_class):
-                        entity_ids.append(entry.entity_id)
-                    continue
+            if entry.area_id == area.id:
+                candidate_entries.append(entry)
+                continue
 
-                if entry.device_id:
-                    if include_device_area:
-                        device = device_reg.devices.get(entry.device_id)
-                        if device is not None and device.area_id == area.id:
-                            if self._is_matching_device_class(entry, device_class):
-                                entity_ids.append(entry.entity_id)
-            return entity_ids
+            if include_device_area and entry.device_id:
+                device = device_reg.devices.get(entry.device_id)
+                if device is not None and device.area_id == area.id:
+                    candidate_entries.append(entry)
+
+        class_to_entity_ids: dict[SensorDeviceClass, list[str]] = {}
+        for entry in candidate_entries:
+            raw = self._raw_device_class(entry)
+            if raw is None:
+                if pending_device_class is not None:
+                    pending_device_class.add(entry.entity_id)
+                _LOGGER.debug(
+                    "Pending sensor device_class (entry_id=%s, entity_id=%s)",
+                    self.config_entry.entry_id,
+                    entry.entity_id,
+                )
+                continue
+
+            parsed = self._parse_device_class(raw)
+            if parsed is None:
+                _LOGGER.debug(
+                    "Unsupported sensor device_class '%s' (entry_id=%s, entity_id=%s)",
+                    raw,
+                    self.config_entry.entry_id,
+                    entry.entity_id,
+                )
+                continue
+
+            class_to_entity_ids.setdefault(parsed, []).append(entry.entity_id)
 
         normalized_area_name = self._normalize_name(area.name)
         created = updated = removed = 0
@@ -321,7 +431,7 @@ class AreaSensorGroupCoordinator:
             default_aggregation,
         ) in SENSOR_GROUP_DEFS.items():
             unique_id = f"{DOMAIN}_sensor_{group_key}_{area.id}"
-            member_entity_ids = _area_entity_ids(device_class)
+            member_entity_ids = class_to_entity_ids.get(device_class, [])
             aggregation = self._aggregation_for_group(group_key) or default_aggregation
             _LOGGER.debug(
                 "Area '%s' sensor group scan (entry_id=%s, group=%s, aggregation=%s, members=%d)",
@@ -388,31 +498,6 @@ class AreaSensorGroupCoordinator:
 
         return created, updated, removed
 
-    def _is_matching_device_class(
-        self, entry: er.RegistryEntry, device_class: SensorDeviceClass
-    ) -> bool:
-        """Return True if registry entry belongs to the requested device class.
-
-        Prefer the entity registry's stored device class to avoid startup timing issues
-        where the entity state is not yet available.
-        """
-        raw = getattr(entry, "original_device_class", None) or getattr(
-            entry, "device_class", None
-        )
-        if not isinstance(raw, str):
-            state = self.hass.states.get(entry.entity_id)
-            if state is None:
-                return False
-            raw = state.attributes.get("device_class")
-            if not isinstance(raw, str):
-                return False
-
-        try:
-            parsed = SensorDeviceClass(raw)
-        except Exception:
-            return False
-        return parsed == device_class
-
     async def _async_update_areas(self, area_ids: set[str | None]) -> None:
         area_ids.discard(None)
         if not area_ids:
@@ -420,6 +505,7 @@ class AreaSensorGroupCoordinator:
 
         entity_reg = er.async_get(self.hass)
         area_reg = ar.async_get(self.hass)
+        pending_device_class: set[str] = set()
 
         for area_id in area_ids:
             area = area_reg.async_get_area(area_id)
@@ -433,13 +519,19 @@ class AreaSensorGroupCoordinator:
             if not self._area_allowed(area):
                 continue
             try:
-                await self._async_update_groups_for_area(area, entity_reg)
+                await self._async_update_groups_for_area(
+                    area, entity_reg, pending_device_class
+                )
             except Exception:
                 _LOGGER.exception(
                     "Failed to update sensor groups for area '%s' (entry_id=%s)",
                     area.name,
                     self.config_entry.entry_id,
                 )
+
+        if pending_device_class:
+            self._pending_device_class_entity_ids |= pending_device_class
+            self._refresh_pending_subscription()
 
     async def _async_remove_area(self, area_id: str) -> None:
         to_remove: list[str] = []
