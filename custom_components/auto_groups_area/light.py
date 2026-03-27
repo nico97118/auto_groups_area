@@ -527,7 +527,28 @@ class AreaLightGroup(LightEntity):
                     return ColorMode(raw)
                 except Exception:  # pragma: no cover
                     continue
-        return None
+
+        # Fallback: if members don't expose ATTR_COLOR_MODE (common for ON/OFF only
+        # lights or for some platforms), pick a stable mode from supported modes.
+        supported = self.supported_color_modes
+        if not supported:
+            return None
+
+        for name in (
+            "RGBWW",
+            "RGBW",
+            "RGB",
+            "HS",
+            "WHITE",
+            "COLOR_TEMP",
+            "BRIGHTNESS",
+            "ONOFF",
+        ):
+            candidate = getattr(ColorMode, name, None)
+            if candidate is not None and candidate in supported:
+                return candidate
+
+        return next(iter(supported))
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
