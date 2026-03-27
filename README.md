@@ -114,10 +114,16 @@ logger:
     custom_components.auto_groups_area: debug
 ```
 
+By default (`info`), logs are aggregated (sync summaries, group creation/removal, reload progress).
+With `debug`, the integration becomes very verbose and includes per-area scans, membership diffs,
+and registry event triggers.
+
 Check the logs for messages like:
 ```
-Area 'Salon' (area_id): found 3 light entities
-Creating/updating group light.area_salon with 3 entities
+Sync light groups done (entry_id=..., areas_allowed=..., created=..., updated=..., removed=...)
+Created light group for area 'Salon' with 3 member(s)
+Area 'Salon' light scan (entry_id=..., scanned=..., members=..., ...)
+Updating light group for area 'Salon' (..., added=[...], removed=[...])
 ```
 
 ## Future Enhancements
