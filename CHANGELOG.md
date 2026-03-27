@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.7-alpha.2] - 2026-03-27
+### Added
+- GitHub Actions test workflow and local testing documentation.
+- Pytest-based test suite (via `pytest-homeassistant-custom-component`).
+### Fixed
+- Light group color mode reporting to satisfy Home Assistant validation.
+- Group creation/registry edge cases uncovered by tests.
+
 ## [0.0.7-alpha.1] - 2026-03-27
 ### Added
 - Home Assistant diagnostics support (config entry and device diagnostics).
@@ -23,4 +31,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Binary sensor groups for motion, presence, opening, and door/window open-close.
 - UI configuration (Options Flow) with multi-step options, area include/exclude, and excluded entities.
 - Integration icon (`icon.png`).
-
