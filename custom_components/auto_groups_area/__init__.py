@@ -3,6 +3,8 @@ import logging
 
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.core import ServiceCall
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -12,6 +14,8 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+SERVICE_RELOAD = "reload"
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -28,9 +32,39 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
+async def _async_reload_all_groups(hass: HomeAssistant) -> None:
+    """Force a refresh of all groups for all config entries."""
+    if DOMAIN not in hass.data:
+        raise HomeAssistantError("Integration not loaded")
+
+    tasks = []
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
+        coordinators = entry_data.get("coordinators", []) if isinstance(entry_data, dict) else []
+        for coordinator in coordinators:
+            update = getattr(coordinator, "async_update_all_groups", None)
+            if update is not None:
+                tasks.append(update())
+
+    if tasks:
+        import asyncio  # noqa: PLC0415
+
+        await asyncio.gather(*tasks)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+
+    # Register services once.
+    global_data = hass.data[DOMAIN].setdefault("_global", {})
+    if not global_data.get("services_registered"):
+
+        async def _handle_reload(_: ServiceCall) -> None:
+            await _async_reload_all_groups(hass)
+
+        hass.services.async_register(DOMAIN, SERVICE_RELOAD, _handle_reload)
+        global_data["services_registered"] = True
 
     platforms = enabled_platforms(entry.options)
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
@@ -46,6 +80,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await coordinator.async_stop()
 
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok and not hass.data.get(DOMAIN):
-        hass.data.pop(DOMAIN, None)
+    if unload_ok:
+        # If no entries remain, remove the service and cleanup.
+        if not hass.config_entries.async_entries(DOMAIN):
+            hass.services.async_remove(DOMAIN, SERVICE_RELOAD)
+        domain_data = hass.data.get(DOMAIN)
+        if isinstance(domain_data, dict) and set(domain_data.keys()) <= {"_global"}:
+            hass.data.pop(DOMAIN, None)
     return unload_ok

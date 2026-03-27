@@ -3,9 +3,10 @@
   "name": "Auto Groups by Area",
   "codeowners": ["@nico97118"],
   "config_flow": true,
+  "single_config_entry": true,
   "dependencies": [],
   "documentation": "https://github.com/nico97118/auto_groups_area",
   "iot_class": "calculated",
   "requirements": [],
-  "version": "0.0.5"
+  "version": "0.0.6"
 }

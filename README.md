@@ -105,6 +105,10 @@ You can configure behavior from the UI:
 - **Sensors**: Choose aggregation per sensor type (`max`, `mean`, `min`, `last`).
 - **Advanced → Excluded entities**: Multi-select entities that will never be included in any group.
 
+## Services
+
+- `auto_groups_area.reload`: Force a full resynchronization of all area groups managed by this integration.
+
 ## Troubleshooting
 
 Enable debug logging in `configuration.yaml`:
