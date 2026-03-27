@@ -46,7 +46,7 @@ class AutoGroupsAreaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             return self.async_create_entry(title="Auto Groups by Area", data={})
 
-        return self.async_show_form(step_id="user")
+        return self.async_show_form(step_id="user", data_schema=vol.Schema({}))
 
     async def async_step_import(self, import_data: dict[str, Any]) -> FlowResult:
         """Handle import from configuration.yaml."""
@@ -64,10 +64,12 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
     """Handle options for Auto Groups by Area."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+        # `OptionsFlow` may expose `config_entry` as a read-only property in some
+        # Home Assistant versions, so keep our own reference.
+        self._config_entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        opts = {**DEFAULT_OPTIONS, **dict(self.config_entry.options)}
+        opts = {**DEFAULT_OPTIONS, **dict(self._config_entry.options)}
 
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
