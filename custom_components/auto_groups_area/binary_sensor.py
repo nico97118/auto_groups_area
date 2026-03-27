@@ -40,6 +40,7 @@ from .const import (
     DOMAIN,
     merged_options,
 )
+from .logging_helpers import diff_lists, format_list
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -94,6 +95,29 @@ class AreaBinarySensorGroupCoordinator:
 
     async def async_start(self) -> None:
         self._options = merged_options(self.config_entry.options)
+        included_raw = self._options.get(CONF_INCLUDED_AREAS)
+        excluded_raw = self._options.get(CONF_EXCLUDED_AREAS)
+        if (
+            isinstance(included_raw, list)
+            and isinstance(excluded_raw, list)
+            and included_raw
+            and excluded_raw
+        ):
+            _LOGGER.warning(
+                "Both %s and %s are set; %s takes precedence (entry_id=%s)",
+                CONF_INCLUDED_AREAS,
+                CONF_EXCLUDED_AREAS,
+                CONF_INCLUDED_AREAS,
+                self.config_entry.entry_id,
+            )
+        _LOGGER.debug(
+            "Starting binary_sensor coordinator (entry_id=%s, create_when_empty=%s, include_device_area=%s, excluded_entities=%d, enabled_groups=%s)",
+            self.config_entry.entry_id,
+            bool(self._options[CONF_CREATE_WHEN_EMPTY]),
+            bool(self._options[CONF_INCLUDE_DEVICE_AREA]),
+            len(self._options.get(CONF_EXCLUDED_ENTITIES, []) or []),
+            sorted(self._enabled_group_defs().keys()),
+        )
         self._unsub_entity_reg = self.hass.bus.async_listen(
             er.EVENT_ENTITY_REGISTRY_UPDATED, self._handle_entity_registry_updated
         )
@@ -181,16 +205,47 @@ class AreaBinarySensorGroupCoordinator:
         entity_reg = er.async_get(self.hass)
         area_reg = ar.async_get(self.hass)
 
-        for area in area_reg.async_list_areas():
+        areas = list(area_reg.async_list_areas())
+        created = updated = removed = 0
+        allowed = 0
+        _LOGGER.debug(
+            "Sync binary_sensor groups start (entry_id=%s, areas_total=%d)",
+            self.config_entry.entry_id,
+            len(areas),
+        )
+
+        for area in areas:
             if not self._area_allowed(area):
                 continue
-            await self._async_update_groups_for_area(area, entity_reg)
+            allowed += 1
+            try:
+                c, u, r = await self._async_update_groups_for_area(area, entity_reg)
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to sync binary_sensor groups for area '%s' (entry_id=%s)",
+                    area.name,
+                    self.config_entry.entry_id,
+                )
+                continue
+            created += c
+            updated += u
+            removed += r
+
+        _LOGGER.info(
+            "Sync binary_sensor groups done (entry_id=%s, areas_allowed=%d/%d, created=%d, updated=%d, removed=%d)",
+            self.config_entry.entry_id,
+            allowed,
+            len(areas),
+            created,
+            updated,
+            removed,
+        )
 
     async def _async_update_groups_for_area(
         self,
         area: ar.AreaEntry,
         entity_reg: er.EntityRegistry,
-    ) -> None:
+    ) -> tuple[int, int, int]:
         device_reg = dr.async_get(self.hass)
         include_device_area = bool(self._options[CONF_INCLUDE_DEVICE_AREA])
         create_when_empty = bool(self._options[CONF_CREATE_WHEN_EMPTY])
@@ -229,10 +284,18 @@ class AreaBinarySensorGroupCoordinator:
             return entity_ids
 
         normalized_area_name = self._normalize_name(area.name)
+        created = updated = removed = 0
 
         for group_key, (label, device_classes) in self._enabled_group_defs().items():
             unique_id = f"{DOMAIN}_binary_sensor_{group_key}_{area.id}"
             member_entity_ids = _area_entity_ids(device_classes)
+            _LOGGER.debug(
+                "Area '%s' binary_sensor group scan (entry_id=%s, group=%s, members=%d)",
+                area.name,
+                self.config_entry.entry_id,
+                group_key,
+                len(member_entity_ids),
+            )
 
             if not member_entity_ids and not create_when_empty:
                 existing = self.groups.pop(unique_id, None)
@@ -241,14 +304,29 @@ class AreaBinarySensorGroupCoordinator:
                         "Removing empty %s group for area '%s'", group_key, area.name
                     )
                     await existing.async_remove()
+                    removed += 1
                 continue
 
             if unique_id in self.groups:
                 group = self.groups[unique_id]
+                added, removed_members = diff_lists(
+                    group._member_entity_ids, member_entity_ids
+                )
+                if added or removed_members:
+                    _LOGGER.debug(
+                        "Updating binary_sensor group (entry_id=%s, unique_id=%s, members=%d -> %d, added=%s, removed=%s)",
+                        self.config_entry.entry_id,
+                        unique_id,
+                        len(group._member_entity_ids),
+                        len(member_entity_ids),
+                        format_list(added),
+                        format_list(removed_members),
+                    )
                 group.update_area(
                     area_name=area.name, normalized_area_name=normalized_area_name
                 )
                 group.update_members(member_entity_ids)
+                updated += 1
                 continue
 
             group = AreaBinarySensorGroup(
@@ -264,6 +342,15 @@ class AreaBinarySensorGroupCoordinator:
             )
             self.groups[unique_id] = group
             self.async_add_entities([group], update_before_add=True)
+            created += 1
+            _LOGGER.debug(
+                "Created binary_sensor group (entry_id=%s, unique_id=%s, members=%s)",
+                self.config_entry.entry_id,
+                unique_id,
+                format_list(member_entity_ids),
+            )
+
+        return created, updated, removed
 
     def _is_matching_device_class(
         self, entity_id: str, device_classes: set[BinarySensorDeviceClass]
@@ -291,10 +378,22 @@ class AreaBinarySensorGroupCoordinator:
         for area_id in area_ids:
             area = area_reg.async_get_area(area_id)
             if area is None:
+                _LOGGER.debug(
+                    "Area id '%s' not found during binary_sensor update (entry_id=%s)",
+                    area_id,
+                    self.config_entry.entry_id,
+                )
                 continue
             if not self._area_allowed(area):
                 continue
-            await self._async_update_groups_for_area(area, entity_reg)
+            try:
+                await self._async_update_groups_for_area(area, entity_reg)
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to update binary_sensor groups for area '%s' (entry_id=%s)",
+                    area.name,
+                    self.config_entry.entry_id,
+                )
 
     async def _async_remove_area(self, area_id: str) -> None:
         to_remove: list[str] = []
@@ -312,6 +411,13 @@ class AreaBinarySensorGroupCoordinator:
             return
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
+        _LOGGER.debug(
+            "Entity registry updated for binary_sensor (entry_id=%s, entity_id=%s, old_area_id=%s, new_area_id=%s)",
+            self.config_entry.entry_id,
+            entity_id,
+            old_area_id,
+            new_area_id,
+        )
         self.hass.async_create_task(
             self._async_update_areas({old_area_id, new_area_id})
         )
@@ -321,6 +427,12 @@ class AreaBinarySensorGroupCoordinator:
         action: str | None = event.data.get("action")
         area_id: str | None = event.data.get("area_id")
 
+        _LOGGER.debug(
+            "Area registry updated (entry_id=%s, action=%s, area_id=%s)",
+            self.config_entry.entry_id,
+            action,
+            area_id,
+        )
         if action in {"create", "update"} and area_id:
             self.hass.async_create_task(self._async_update_areas({area_id}))
             return
@@ -336,6 +448,13 @@ class AreaBinarySensorGroupCoordinator:
 
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
+        _LOGGER.debug(
+            "Device registry updated (entry_id=%s, action=%s, old_area_id=%s, new_area_id=%s)",
+            self.config_entry.entry_id,
+            action,
+            old_area_id,
+            new_area_id,
+        )
         if old_area_id or new_area_id:
             self.hass.async_create_task(
                 self._async_update_areas({old_area_id, new_area_id})

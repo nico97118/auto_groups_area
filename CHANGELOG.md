@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Verbose debug logging for group sync/update triggers (per-area/per-group scan details, membership diffs).
+### Changed
+- `auto_groups_area.reload` now logs aggregated progress and any per-entry errors instead of failing hard on the first exception.
 
 ## [0.8.0-beta.1] - 2026-03-27
 ### Added

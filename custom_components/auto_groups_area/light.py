@@ -42,6 +42,7 @@ from .const import (
     DOMAIN,
     merged_options,
 )
+from .logging_helpers import diff_lists, format_list
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -81,6 +82,28 @@ class AreaLightGroupCoordinator:
     async def async_start(self) -> None:
         """Start coordinator and do initial sync."""
         self._options = merged_options(self.config_entry.options)
+        included_raw = self._options.get(CONF_INCLUDED_AREAS)
+        excluded_raw = self._options.get(CONF_EXCLUDED_AREAS)
+        if (
+            isinstance(included_raw, list)
+            and isinstance(excluded_raw, list)
+            and included_raw
+            and excluded_raw
+        ):
+            _LOGGER.warning(
+                "Both %s and %s are set; %s takes precedence (entry_id=%s)",
+                CONF_INCLUDED_AREAS,
+                CONF_EXCLUDED_AREAS,
+                CONF_INCLUDED_AREAS,
+                self.config_entry.entry_id,
+            )
+        _LOGGER.debug(
+            "Starting light coordinator (entry_id=%s, create_when_empty=%s, include_device_area=%s, excluded_entities=%d)",
+            self.config_entry.entry_id,
+            bool(self._options[CONF_CREATE_WHEN_EMPTY]),
+            bool(self._options[CONF_INCLUDE_DEVICE_AREA]),
+            len(self._options.get(CONF_EXCLUDED_ENTITIES, []) or []),
+        )
         self._unsub_entity_reg = self.hass.bus.async_listen(
             er.EVENT_ENTITY_REGISTRY_UPDATED, self._handle_entity_registry_updated
         )
@@ -164,20 +187,57 @@ class AreaLightGroupCoordinator:
         entity_reg = er.async_get(self.hass)
         area_reg = ar.async_get(self.hass)
 
-        for area in area_reg.async_list_areas():
+        areas = list(area_reg.async_list_areas())
+        created = updated = removed = 0
+        allowed = 0
+        _LOGGER.debug(
+            "Sync light groups start (entry_id=%s, areas_total=%d)",
+            self.config_entry.entry_id,
+            len(areas),
+        )
+
+        for area in areas:
             if not self._area_allowed(area):
                 continue
-            await self._async_update_group_for_area(area, "light", entity_reg)
+            allowed += 1
+            try:
+                action = await self._async_update_group_for_area(
+                    area, "light", entity_reg
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to sync light group for area '%s' (entry_id=%s)",
+                    area.name,
+                    self.config_entry.entry_id,
+                )
+                continue
+
+            if action == "created":
+                created += 1
+            elif action == "updated":
+                updated += 1
+            elif action == "removed":
+                removed += 1
+
+        _LOGGER.info(
+            "Sync light groups done (entry_id=%s, areas_allowed=%d/%d, created=%d, updated=%d, removed=%d)",
+            self.config_entry.entry_id,
+            allowed,
+            len(areas),
+            created,
+            updated,
+            removed,
+        )
 
     async def _async_update_group_for_area(
         self,
         area: ar.AreaEntry,
         domain: str,
         entity_reg: er.EntityRegistry,
-    ) -> None:
+    ) -> str:
         """Update the group entity for one area."""
         if domain != "light":
-            return
+            return "noop"
 
         device_reg = dr.async_get(self.hass)
         member_entity_ids: list[str] = []
@@ -189,12 +249,16 @@ class AreaLightGroupCoordinator:
             else set()
         )
 
+        scanned = excluded = disabled = added_by_device = 0
         for entry in entity_reg.entities.values():
             if not entry.entity_id.startswith("light."):
                 continue
+            scanned += 1
             if entry.entity_id in excluded_entities:
+                excluded += 1
                 continue
             if entry.disabled_by is not None:
+                disabled += 1
                 continue
 
             # Entity directly assigned to area
@@ -207,26 +271,50 @@ class AreaLightGroupCoordinator:
                 device = device_reg.devices.get(entry.device_id)
                 if device is not None and device.area_id == area.id:
                     member_entity_ids.append(entry.entity_id)
+                    added_by_device += 1
 
         unique_id = f"{DOMAIN}_{domain}_{area.id}"
         normalized_area_name = self._normalize_name(area.name)
         group_prefix = str(self._options[CONF_GROUP_PREFIX] or "")
         create_when_empty = bool(self._options[CONF_CREATE_WHEN_EMPTY])
 
+        _LOGGER.debug(
+            "Area '%s' light scan (entry_id=%s, scanned=%d, members=%d, by_device=%d, excluded=%d, disabled=%d)",
+            area.name,
+            self.config_entry.entry_id,
+            scanned,
+            len(member_entity_ids),
+            added_by_device,
+            excluded,
+            disabled,
+        )
+
         if not member_entity_ids and not create_when_empty:
             existing = self.groups.pop(unique_id, None)
             if existing is not None:
                 _LOGGER.info("Removing empty light group for area '%s'", area.name)
                 await existing.async_remove()
-            return
+                return "removed"
+            return "noop"
 
         if unique_id in self.groups:
             group = self.groups[unique_id]
+            added, removed = diff_lists(group._member_entity_ids, member_entity_ids)
+            if added or removed:
+                _LOGGER.debug(
+                    "Updating light group for area '%s' (entry_id=%s, members=%d -> %d, added=%s, removed=%s)",
+                    area.name,
+                    self.config_entry.entry_id,
+                    len(group._member_entity_ids),
+                    len(member_entity_ids),
+                    format_list(added),
+                    format_list(removed),
+                )
             group.update_area(
                 area_name=area.name, normalized_area_name=normalized_area_name
             )
             group.update_members(member_entity_ids)
-            return
+            return "updated"
 
         group = AreaLightGroup(
             unique_id=unique_id,
@@ -244,6 +332,13 @@ class AreaLightGroupCoordinator:
             area.name,
             len(member_entity_ids),
         )
+        _LOGGER.debug(
+            "Created light group (entry_id=%s, unique_id=%s, members=%s)",
+            self.config_entry.entry_id,
+            unique_id,
+            format_list(member_entity_ids),
+        )
+        return "created"
 
     @callback
     def _handle_entity_registry_updated(self, event: Event) -> None:
@@ -258,6 +353,13 @@ class AreaLightGroupCoordinator:
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
 
+        _LOGGER.debug(
+            "Entity registry updated for light (entry_id=%s, entity_id=%s, old_area_id=%s, new_area_id=%s)",
+            self.config_entry.entry_id,
+            entity_id,
+            old_area_id,
+            new_area_id,
+        )
         self.hass.async_create_task(
             self._async_update_areas({old_area_id, new_area_id})
         )
@@ -268,6 +370,12 @@ class AreaLightGroupCoordinator:
         action: str | None = event.data.get("action")
         area_id: str | None = event.data.get("area_id")
 
+        _LOGGER.debug(
+            "Area registry updated (entry_id=%s, action=%s, area_id=%s)",
+            self.config_entry.entry_id,
+            action,
+            area_id,
+        )
         if action in {"create", "update"} and area_id:
             self.hass.async_create_task(self._async_update_areas({area_id}))
             return
@@ -285,6 +393,13 @@ class AreaLightGroupCoordinator:
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
 
+        _LOGGER.debug(
+            "Device registry updated (entry_id=%s, action=%s, old_area_id=%s, new_area_id=%s)",
+            self.config_entry.entry_id,
+            action,
+            old_area_id,
+            new_area_id,
+        )
         # When a device changes area, entity registry may not change, so update both areas.
         if old_area_id or new_area_id:
             self.hass.async_create_task(
@@ -307,10 +422,22 @@ class AreaLightGroupCoordinator:
         for area_id in area_ids:
             area = area_reg.async_get_area(area_id)
             if area is None:
+                _LOGGER.debug(
+                    "Area id '%s' not found during light update (entry_id=%s)",
+                    area_id,
+                    self.config_entry.entry_id,
+                )
                 continue
             if not self._area_allowed(area):
                 continue
-            await self._async_update_group_for_area(area, "light", entity_reg)
+            try:
+                await self._async_update_group_for_area(area, "light", entity_reg)
+            except Exception:
+                _LOGGER.exception(
+                    "Failed to update light group for area '%s' (entry_id=%s)",
+                    area.name,
+                    self.config_entry.entry_id,
+                )
 
     async def _async_remove_area(self, area_id: str) -> None:
         """Remove group entities for an area that was deleted."""

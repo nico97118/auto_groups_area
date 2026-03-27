@@ -38,7 +38,9 @@ async def _async_reload_all_groups(hass: HomeAssistant) -> None:
         raise HomeAssistantError("Integration not loaded")
 
     tasks = []
+    entry_ids: list[str] = []
     for entry in hass.config_entries.async_entries(DOMAIN):
+        entry_ids.append(entry.entry_id)
         entry_data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
         coordinators = (
             entry_data.get("coordinators", []) if isinstance(entry_data, dict) else []
@@ -48,10 +50,28 @@ async def _async_reload_all_groups(hass: HomeAssistant) -> None:
             if update is not None:
                 tasks.append(update())
 
-    if tasks:
-        import asyncio  # noqa: PLC0415
+    if not tasks:
+        _LOGGER.warning(
+            "Reload requested, but no coordinators found (entries=%d)", len(entry_ids)
+        )
+        return
 
-        await asyncio.gather(*tasks)
+    _LOGGER.info(
+        "Reloading all groups (entries=%d, coordinators=%d)",
+        len(entry_ids),
+        len(tasks),
+    )
+
+    import asyncio  # noqa: PLC0415
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    errors = [r for r in results if isinstance(r, Exception)]
+    if errors:
+        _LOGGER.error("Reload completed with %d error(s); check logs", len(errors))
+        for idx, err in enumerate(errors, start=1):
+            _LOGGER.exception("Reload error #%d", idx, exc_info=err)
+    else:
+        _LOGGER.info("Reload completed successfully")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
