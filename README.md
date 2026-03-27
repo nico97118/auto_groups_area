@@ -1,11 +1,12 @@
 # Auto Groups by Area
+![License](https://img.shields.io/github/license/nico97118/auto_groups_area)
+![Latest Release](https://img.shields.io/github/v/release/nico97118/auto_groups_area?include_prereleases)
+![Repo Size](https://img.shields.io/github/repo-size/nico97118/auto_groups_area)
 
 Custom component for Home Assistant that automatically creates and maintains groups of entities based on their assigned area.
 
 [![Open your Home Assistant instance and add this repository to HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nico97118&repository=auto_groups_area&category=integration)
-![License](https://img.shields.io/github/license/nico97118/auto_groups_area)
-![Latest Release](https://img.shields.io/github/v/release/nico97118/auto_groups_area?include_prereleases)
-![Repo Size](https://img.shields.io/github/repo-size/nico97118/auto_groups_area)
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=auto_groups_area)
 
 ## Features
 
@@ -21,19 +22,7 @@ Custom component for Home Assistant that automatically creates and maintains gro
 
 ### Manual Installation
 
-1. Copy `custom_components/auto_groups_area/` from this repository into your Home Assistant `custom_components` directory:
-   ```
-   custom_components/
-   └── auto_groups_area/
-       ├── __init__.py
-       ├── config_flow.py
-       ├── binary_sensor.py
-       ├── light.py
-       ├── manifest.json
-       ├── sensor.py
-       ├── strings.json
-       └── const.py
-   ```
+1. Copy the folder `custom_components/auto_groups_area/` from this repository into your Home Assistant `custom_components` directory.
 
 2. Restart Home Assistant
 
@@ -145,4 +134,4 @@ Feel free to open issues or submit pull requests!
 
 ## License
 
-MIT
+MIT License.
