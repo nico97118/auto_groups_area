@@ -23,6 +23,7 @@ from homeassistant.components.light import (
     LightEntity,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
@@ -77,6 +78,7 @@ class AreaLightGroupCoordinator:
         self._unsub_entity_reg: Callable[[], None] | None = None
         self._unsub_area_reg: Callable[[], None] | None = None
         self._unsub_device_reg: Callable[[], None] | None = None
+        self._unsub_ha_started: Callable[[], None] | None = None
         self._options = {**DEFAULT_OPTIONS, **dict(config_entry.options)}
 
     async def async_start(self) -> None:
@@ -114,7 +116,18 @@ class AreaLightGroupCoordinator:
             dr.EVENT_DEVICE_REGISTRY_UPDATED, self._handle_device_registry_updated
         )
 
-        await self.async_update_all_groups()
+        if self.hass.is_running:
+            await self.async_update_all_groups()
+            return
+
+        _LOGGER.debug(
+            "Deferring initial light sync until %s (entry_id=%s)",
+            EVENT_HOMEASSISTANT_STARTED,
+            self.config_entry.entry_id,
+        )
+        self._unsub_ha_started = self.hass.bus.async_listen_once(
+            EVENT_HOMEASSISTANT_STARTED, self._handle_homeassistant_started
+        )
 
     async def async_stop(self) -> None:
         """Stop coordinator (listeners)."""
@@ -127,6 +140,14 @@ class AreaLightGroupCoordinator:
         if self._unsub_device_reg is not None:
             self._unsub_device_reg()
             self._unsub_device_reg = None
+        if self._unsub_ha_started is not None:
+            self._unsub_ha_started()
+            self._unsub_ha_started = None
+
+    @callback
+    def _handle_homeassistant_started(self, _: Event) -> None:
+        self._unsub_ha_started = None
+        self.hass.async_create_task(self.async_update_all_groups())
 
     def _normalize_name(self, name: str) -> str:
         """Normalize area name for object_id-like usage."""

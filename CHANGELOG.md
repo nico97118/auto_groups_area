@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Verbose debug logging for group sync/update triggers (per-area/per-group scan details, membership diffs).
 ### Changed
 - `auto_groups_area.reload` now logs aggregated progress and any per-entry errors instead of failing hard on the first exception.
+- Initial platform sync is now scheduled after `EVENT_HOMEASSISTANT_STARTED` when Home Assistant is still starting, to avoid missing groups due to startup timing.
 ### Fixed
 - Sensor and binary_sensor group membership now prefers device class from the entity registry (fallback to state) to avoid missing groups during startup when states are not yet available.
 
