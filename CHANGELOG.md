@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0-beta.1] - 2026-03-27
+### Added
+- Ruff configuration (`pyproject.toml`) and optional lint dependencies (`requirements_lint.txt`).
+- GitHub Actions lint workflow running `ruff check` + `ruff format --check` (`.github/workflows/lint.yml`).
+- Optional `pre-commit` hook configuration to auto-run Ruff on commit (`.pre-commit-config.yaml`).
+- Test folder README for nicer GitHub browsing (`tests/README.md`) and a development link from the main `README.md`.
+### Fixed
+- Area light group `color_mode` is guaranteed to be within `supported_color_modes` to satisfy Home Assistant validation (plus a regression test).
+
 ## [0.0.7-alpha.2] - 2026-03-27
 ### Added
 - GitHub Actions test workflow and local testing documentation.

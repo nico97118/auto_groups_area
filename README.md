@@ -132,6 +132,10 @@ Creating/updating group light.area_salon with 3 entities
 
 Feel free to open issues or submit pull requests!
 
+### Development
+
+- QA / tests / lint / formatting: `TESTING.md`
+
 ## License
 
 MIT License.
