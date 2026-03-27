@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Verbose debug logging for group sync/update triggers (per-area/per-group scan details, membership diffs).
 ### Changed
 - `auto_groups_area.reload` now logs aggregated progress and any per-entry errors instead of failing hard on the first exception.
+### Fixed
+- Sensor and binary_sensor group membership now prefers device class from the entity registry (fallback to state) to avoid missing groups during startup when states are not yet available.
 
 ## [0.8.0-beta.1] - 2026-03-27
 ### Added

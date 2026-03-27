@@ -269,7 +269,7 @@ class AreaBinarySensorGroupCoordinator:
 
                 # Direct assignment to area
                 if entry.area_id == area.id:
-                    if self._is_matching_device_class(entry.entity_id, device_classes):
+                    if self._is_matching_device_class(entry, device_classes):
                         entity_ids.append(entry.entity_id)
                     continue
 
@@ -277,9 +277,7 @@ class AreaBinarySensorGroupCoordinator:
                 if include_device_area and entry.device_id:
                     device = device_reg.devices.get(entry.device_id)
                     if device is not None and device.area_id == area.id:
-                        if self._is_matching_device_class(
-                            entry.entity_id, device_classes
-                        ):
+                        if self._is_matching_device_class(entry, device_classes):
                             entity_ids.append(entry.entity_id)
             return entity_ids
 
@@ -353,14 +351,24 @@ class AreaBinarySensorGroupCoordinator:
         return created, updated, removed
 
     def _is_matching_device_class(
-        self, entity_id: str, device_classes: set[BinarySensorDeviceClass]
+        self, entry: er.RegistryEntry, device_classes: set[BinarySensorDeviceClass]
     ) -> bool:
-        state = self.hass.states.get(entity_id)
-        if state is None:
-            return False
-        raw = state.attributes.get("device_class")
+        """Return True if registry entry matches one of the requested device classes.
+
+        Prefer the entity registry's stored device class to avoid startup timing issues
+        where the entity state is not yet available.
+        """
+        raw = getattr(entry, "original_device_class", None) or getattr(
+            entry, "device_class", None
+        )
         if not isinstance(raw, str):
-            return False
+            state = self.hass.states.get(entry.entity_id)
+            if state is None:
+                return False
+            raw = state.attributes.get("device_class")
+            if not isinstance(raw, str):
+                return False
+
         try:
             parsed = BinarySensorDeviceClass(raw)
         except Exception:

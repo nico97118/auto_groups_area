@@ -135,3 +135,37 @@ async def test_sensor_last_uses_latest_changed(
     group2 = hass.states.get("sensor.area_salle_de_bain_humidity")
     assert group2 is not None
     assert float(group2.state) == 55.0
+
+
+@pytest.mark.usefixtures("setup_integration")
+async def test_sensor_groups_use_registry_device_class_when_state_missing(
+    hass: HomeAssistant,
+) -> None:
+    """Ensure groups are created even if member states are not yet available.
+
+    Some integrations restore sensor states later during startup. We prefer the entity
+    registry's stored device class (fallback to state) to avoid missing groups.
+    """
+    area_reg = ar.async_get(hass)
+    area = area_reg.async_create("Bureau")
+
+    entity_reg = er.async_get(hass)
+    hum = entity_reg.async_get_or_create("sensor", "demo", "hum_no_state")
+    lux = entity_reg.async_get_or_create("sensor", "demo", "lux_no_state")
+    entity_reg.async_update_entity(
+        hum.entity_id, area_id=area.id, original_device_class="humidity"
+    )
+    entity_reg.async_update_entity(
+        lux.entity_id, area_id=area.id, original_device_class="illuminance"
+    )
+
+    # Intentionally do not set hass.states for these sensors.
+    await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
+    await hass.async_block_till_done()
+
+    hum_group = hass.states.get("sensor.area_bureau_humidity")
+    lux_group = hass.states.get("sensor.area_bureau_illuminance")
+    assert hum_group is not None
+    assert lux_group is not None
+    assert hum_group.attributes.get("device_class") == "humidity"
+    assert lux_group.attributes.get("device_class") == "illuminance"

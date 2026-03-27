@@ -279,7 +279,7 @@ class AreaSensorGroupCoordinator:
                     continue
 
                 if entry.area_id == area.id:
-                    if self._is_matching_device_class(entry.entity_id, device_class):
+                    if self._is_matching_device_class(entry, device_class):
                         entity_ids.append(entry.entity_id)
                     continue
 
@@ -287,9 +287,7 @@ class AreaSensorGroupCoordinator:
                     if include_device_area:
                         device = device_reg.devices.get(entry.device_id)
                         if device is not None and device.area_id == area.id:
-                            if self._is_matching_device_class(
-                                entry.entity_id, device_class
-                            ):
+                            if self._is_matching_device_class(entry, device_class):
                                 entity_ids.append(entry.entity_id)
             return entity_ids
 
@@ -370,14 +368,24 @@ class AreaSensorGroupCoordinator:
         return created, updated, removed
 
     def _is_matching_device_class(
-        self, entity_id: str, device_class: SensorDeviceClass
+        self, entry: er.RegistryEntry, device_class: SensorDeviceClass
     ) -> bool:
-        state = self.hass.states.get(entity_id)
-        if state is None:
-            return False
-        raw = state.attributes.get("device_class")
+        """Return True if registry entry belongs to the requested device class.
+
+        Prefer the entity registry's stored device class to avoid startup timing issues
+        where the entity state is not yet available.
+        """
+        raw = getattr(entry, "original_device_class", None) or getattr(
+            entry, "device_class", None
+        )
         if not isinstance(raw, str):
-            return False
+            state = self.hass.states.get(entry.entity_id)
+            if state is None:
+                return False
+            raw = state.attributes.get("device_class")
+            if not isinstance(raw, str):
+                return False
+
         try:
             parsed = SensorDeviceClass(raw)
         except Exception:
