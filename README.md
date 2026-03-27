@@ -2,6 +2,11 @@
 
 Custom component for Home Assistant that automatically creates and maintains groups of entities based on their assigned area.
 
+[![Open your Home Assistant instance and add this repository to HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nico97118&repository=auto_groups_area&category=integration)
+![License](https://img.shields.io/github/license/nico97118/auto_groups_area)
+![Latest Release](https://img.shields.io/github/v/release/nico97118/auto_groups_area?include_prereleases)
+![Repo Size](https://img.shields.io/github/repo-size/nico97118/auto_groups_area)
+
 ## Features
 
 - Automatically creates groups for each area (currently supports `light` entities)
@@ -37,7 +42,9 @@ Custom component for Home Assistant that automatically creates and maintains gro
 
 ### HACS Installation
 
-1. In HACS, add this GitHub repository as a **Custom repository** (category: **Integration**)
+1. Add this repository to HACS (custom repository, category **Integration**):
+   - Use the badge/link at the top of this README, or
+   - Manually add: `https://github.com/nico97118/auto_groups_area`
 
 2. Install it from HACS, then restart Home Assistant
 
