@@ -48,6 +48,15 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_LOG_ENTITY_ID_LIMIT = 20
+
+
+def _format_entity_ids(entity_ids: list[str]) -> str:
+    """Format entity_id list for debug logs (truncated)."""
+    if len(entity_ids) <= _LOG_ENTITY_ID_LIMIT:
+        return str(entity_ids)
+    return f"{entity_ids[:_LOG_ENTITY_ID_LIMIT]} (+{len(entity_ids) - _LOG_ENTITY_ID_LIMIT} more)"
+
 
 class Aggregation(str):
     MAX = "max"
@@ -98,6 +107,12 @@ class AreaSensorGroupCoordinator:
 
     async def async_start(self) -> None:
         self._options = merged_options(self.config_entry.options)
+        _LOGGER.debug(
+            "Starting sensor coordinator (entry_id=%s, create_when_empty=%s, include_device_area=%s)",
+            self.config_entry.entry_id,
+            bool(self._options[CONF_CREATE_WHEN_EMPTY]),
+            bool(self._options[CONF_INCLUDE_DEVICE_AREA]),
+        )
         self._unsub_entity_reg = self.hass.bus.async_listen(
             er.EVENT_ENTITY_REGISTRY_UPDATED, self._handle_entity_registry_updated
         )
@@ -112,6 +127,11 @@ class AreaSensorGroupCoordinator:
             await self.async_update_all_groups()
             return
 
+        _LOGGER.debug(
+            "Deferring initial sensor scan until %s (entry_id=%s)",
+            EVENT_HOMEASSISTANT_STARTED,
+            self.config_entry.entry_id,
+        )
         self._unsub_ha_started = self.hass.bus.async_listen_once(
             EVENT_HOMEASSISTANT_STARTED, self._handle_homeassistant_started
         )
@@ -206,10 +226,25 @@ class AreaSensorGroupCoordinator:
         entity_reg = er.async_get(self.hass)
         area_reg = ar.async_get(self.hass)
 
-        for area in area_reg.async_list_areas():
+        areas = list(area_reg.async_list_areas())
+        _LOGGER.debug(
+            "Sync sensor groups start (entry_id=%s, areas_total=%d, existing_groups=%d)",
+            self.config_entry.entry_id,
+            len(areas),
+            len(self.groups),
+        )
+
+        for area in areas:
             if not self._area_allowed(area):
                 continue
             await self._async_update_groups_for_area(area, entity_reg)
+
+        _LOGGER.debug(
+            "Sync sensor groups done (entry_id=%s, areas_total=%d, groups_now=%d)",
+            self.config_entry.entry_id,
+            len(areas),
+            len(self.groups),
+        )
 
     async def _async_update_groups_for_area(
         self,
@@ -263,7 +298,21 @@ class AreaSensorGroupCoordinator:
             member_entity_ids = _area_entity_ids(device_class)
             aggregation = self._aggregation_for_group(group_key) or default_aggregation
 
+            _LOGGER.debug(
+                "Area '%s' sensor group '%s' (aggregation=%s, members=%d, ids=%s)",
+                area.name,
+                group_key,
+                aggregation,
+                len(member_entity_ids),
+                _format_entity_ids(member_entity_ids),
+            )
+
             if not member_entity_ids and not create_when_empty:
+                _LOGGER.debug(
+                    "Skipping empty sensor group '%s' for area '%s' (create_when_empty=false)",
+                    group_key,
+                    area.name,
+                )
                 existing = self.groups.pop(unique_id, None)
                 if existing is not None:
                     _LOGGER.info(
@@ -274,6 +323,20 @@ class AreaSensorGroupCoordinator:
 
             if unique_id in self.groups:
                 group = self.groups[unique_id]
+                if member_entity_ids != group._member_entity_ids:
+                    added = sorted(
+                        set(member_entity_ids) - set(group._member_entity_ids)
+                    )
+                    removed = sorted(
+                        set(group._member_entity_ids) - set(member_entity_ids)
+                    )
+                    _LOGGER.debug(
+                        "Updating sensor group '%s' for area '%s' (added=%s, removed=%s)",
+                        group_key,
+                        area.name,
+                        _format_entity_ids(added),
+                        _format_entity_ids(removed),
+                    )
                 group.update_area(
                     area_name=area.name, normalized_area_name=normalized_area_name
                 )
@@ -348,6 +411,12 @@ class AreaSensorGroupCoordinator:
             return
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
+        _LOGGER.debug(
+            "Entity registry updated for sensor (entity_id=%s, old_area_id=%s, new_area_id=%s)",
+            entity_id,
+            old_area_id,
+            new_area_id,
+        )
         self.hass.async_create_task(
             self._async_update_areas({old_area_id, new_area_id})
         )
@@ -356,6 +425,11 @@ class AreaSensorGroupCoordinator:
     def _handle_area_registry_updated(self, event: Event) -> None:
         action: str | None = event.data.get("action")
         area_id: str | None = event.data.get("area_id")
+        _LOGGER.debug(
+            "Area registry updated for sensor (action=%s, area_id=%s)",
+            action,
+            area_id,
+        )
 
         if action in {"create", "update"} and area_id:
             self.hass.async_create_task(self._async_update_areas({area_id}))
@@ -372,6 +446,12 @@ class AreaSensorGroupCoordinator:
 
         old_area_id: str | None = event.data.get("old_area_id")
         new_area_id: str | None = event.data.get("area_id")
+        _LOGGER.debug(
+            "Device registry updated for sensor (action=%s, old_area_id=%s, new_area_id=%s)",
+            action,
+            old_area_id,
+            new_area_id,
+        )
         if old_area_id or new_area_id:
             self.hass.async_create_task(
                 self._async_update_areas({old_area_id, new_area_id})
