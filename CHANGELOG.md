@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Optional area `switch` groups (same model as `light` groups).
+- Optional area `cover` groups (same model as `light` groups).
 ### Changed
 - Options UI: actuator grouping is now configured via a multi-select (`light`, `switch`) instead of per-domain checkboxes.
 

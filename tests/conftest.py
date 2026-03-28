@@ -35,6 +35,7 @@ async def setup_integration(hass: HomeAssistant, make_config_entry) -> MockConfi
     # Ensure base platforms exist to avoid forward-setup failures.
     await async_setup_component(hass, "light", {})
     await async_setup_component(hass, "switch", {})
+    await async_setup_component(hass, "cover", {})
     await async_setup_component(hass, "sensor", {})
     await async_setup_component(hass, "binary_sensor", {})
 

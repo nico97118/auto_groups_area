@@ -8,6 +8,7 @@ DOMAIN = "auto_groups_area"
 PLATFORMS: list[Platform] = [
     Platform.LIGHT,
     Platform.SWITCH,
+    Platform.COVER,
     Platform.BINARY_SENSOR,
     Platform.SENSOR,
 ]
@@ -99,6 +100,8 @@ def enabled_platforms(options: dict) -> list[Platform]:
         platforms.append(Platform.LIGHT)
     if isinstance(actuator_domains, list) and "switch" in actuator_domains:
         platforms.append(Platform.SWITCH)
+    if isinstance(actuator_domains, list) and "cover" in actuator_domains:
+        platforms.append(Platform.COVER)
     if opts[CONF_ENABLE_BINARY_SENSORS]:
         platforms.append(Platform.BINARY_SENSOR)
     if opts[CONF_ENABLE_SENSORS]:

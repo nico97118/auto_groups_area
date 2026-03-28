@@ -105,7 +105,7 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
                 ): selector(
                     {
                         "select": {
-                            "options": ["light", "switch"],
+                            "options": ["light", "switch", "cover"],
                             "multiple": True,
                             "mode": "dropdown",
                         }
