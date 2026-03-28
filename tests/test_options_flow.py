@@ -4,9 +4,9 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.auto_groups_area.const import (
     AGGREGATION_LAST,
+    CONF_ACTUATOR_DOMAINS,
     CONF_ENABLE_BINARY_SENSORS,
     CONF_ENABLE_SENSORS,
-    CONF_ENABLE_SWITCHES,
     CONF_EXCLUDED_ENTITIES,
     CONF_HUMIDITY_AGGREGATION,
 )
@@ -19,7 +19,7 @@ async def test_options_flow_multistep(hass: HomeAssistant, setup_integration) ->
     assert result["type"] == "form"
     assert result["step_id"] == "init"
     schema = result["data_schema"].schema
-    assert any(getattr(key, "schema", None) == CONF_ENABLE_SWITCHES for key in schema)
+    assert any(getattr(key, "schema", None) == CONF_ACTUATOR_DOMAINS for key in schema)
 
     # Keep binary_sensors enabled, disable sensors => should go to binary_sensors then advanced.
     result2 = await hass.config_entries.options.async_configure(

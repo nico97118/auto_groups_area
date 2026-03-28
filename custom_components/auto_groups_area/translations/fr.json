@@ -17,8 +17,7 @@
         "title": "Options",
         "description": "Ajuste quels groupes sont créés et comment les valeurs des capteurs sont agrégées.",
         "data": {
-          "enable_lights": "Créer les groupes de lumières",
-          "enable_switches": "Créer les groupes switch",
+          "actuator_domains": "Actionneurs à regrouper (domaines)",
           "enable_binary_sensors": "Créer les groupes binary_sensor",
           "enable_sensors": "Créer les groupes sensor",
           "group_prefix": "Préfixe d'identifiant (object id)",

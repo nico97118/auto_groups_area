@@ -16,6 +16,9 @@ PLATFORMS: list[Platform] = [
 GROUP_PREFIX = "area_"
 
 # Options
+# New-style actuator selection (replaces per-domain checkboxes).
+CONF_ACTUATOR_DOMAINS = "actuator_domains"
+
 CONF_ENABLE_LIGHTS = "enable_lights"
 CONF_ENABLE_SWITCHES = "enable_switches"
 CONF_ENABLE_SENSORS = "enable_sensors"
@@ -42,6 +45,8 @@ AGGREGATION_MIN = "min"
 AGGREGATION_LAST = "last"
 
 DEFAULT_OPTIONS: dict[str, object] = {
+    # New-style actuator selection (defaults to lights only).
+    CONF_ACTUATOR_DOMAINS: ["light"],
     CONF_ENABLE_LIGHTS: True,
     # Default to off to avoid surprising upgrades.
     CONF_ENABLE_SWITCHES: False,
@@ -67,16 +72,32 @@ DEFAULT_OPTIONS: dict[str, object] = {
 
 def merged_options(options: dict) -> dict[str, object]:
     """Return integration options with defaults applied."""
-    return {**DEFAULT_OPTIONS, **(options or {})}
+    merged = {**DEFAULT_OPTIONS, **(options or {})}
+
+    # Backward compatibility: if actuator_domains isn't present, derive from legacy
+    # per-domain checkboxes.
+    raw_domains = merged.get(CONF_ACTUATOR_DOMAINS)
+    if isinstance(raw_domains, list) and all(isinstance(v, str) for v in raw_domains):
+        merged[CONF_ACTUATOR_DOMAINS] = [v for v in raw_domains if v]
+        return merged
+
+    domains: list[str] = []
+    if bool(merged.get(CONF_ENABLE_LIGHTS, True)):
+        domains.append("light")
+    if bool(merged.get(CONF_ENABLE_SWITCHES, False)):
+        domains.append("switch")
+    merged[CONF_ACTUATOR_DOMAINS] = domains
+    return merged
 
 
 def enabled_platforms(options: dict) -> list[Platform]:
     """Return platforms enabled by options."""
     opts = merged_options(options)
     platforms: list[Platform] = []
-    if opts[CONF_ENABLE_LIGHTS]:
+    actuator_domains = opts.get(CONF_ACTUATOR_DOMAINS, [])
+    if isinstance(actuator_domains, list) and "light" in actuator_domains:
         platforms.append(Platform.LIGHT)
-    if opts[CONF_ENABLE_SWITCHES]:
+    if isinstance(actuator_domains, list) and "switch" in actuator_domains:
         platforms.append(Platform.SWITCH)
     if opts[CONF_ENABLE_BINARY_SENSORS]:
         platforms.append(Platform.BINARY_SENSOR)

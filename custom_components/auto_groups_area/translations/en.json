@@ -17,8 +17,7 @@
         "title": "Options",
         "description": "Tune which groups are created and how sensor values are aggregated.",
         "data": {
-          "enable_lights": "Create light groups",
-          "enable_switches": "Create switch groups",
+          "actuator_domains": "Actuators to group (domains)",
           "enable_binary_sensors": "Create binary_sensor groups",
           "enable_sensors": "Create sensor groups",
           "group_prefix": "Entity id prefix (object id)",

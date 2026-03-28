@@ -13,15 +13,14 @@ from .const import (
     AGGREGATION_MAX,
     AGGREGATION_MEAN,
     AGGREGATION_MIN,
+    CONF_ACTUATOR_DOMAINS,
     CONF_CREATE_WHEN_EMPTY,
     CONF_ENABLE_BINARY_SENSORS,
     CONF_ENABLE_BS_MOTION,
     CONF_ENABLE_BS_OPENCLOSE,
     CONF_ENABLE_BS_OPENING,
     CONF_ENABLE_BS_PRESENCE,
-    CONF_ENABLE_LIGHTS,
     CONF_ENABLE_SENSORS,
-    CONF_ENABLE_SWITCHES,
     CONF_EXCLUDED_AREAS,
     CONF_EXCLUDED_ENTITIES,
     CONF_GROUP_PREFIX,
@@ -90,6 +89,9 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
 
         if user_input is not None:
             self._options_data.update(user_input)
+            self._options_data.setdefault(
+                CONF_ACTUATOR_DOMAINS, opts[CONF_ACTUATOR_DOMAINS]
+            )
             if self._options_data.get(CONF_ENABLE_BINARY_SENSORS):
                 return await self.async_step_binary_sensors()
             if self._options_data.get(CONF_ENABLE_SENSORS):
@@ -99,11 +101,16 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
         schema = vol.Schema(
             {
                 vol.Optional(
-                    CONF_ENABLE_LIGHTS, default=opts[CONF_ENABLE_LIGHTS]
-                ): bool,
-                vol.Optional(
-                    CONF_ENABLE_SWITCHES, default=opts[CONF_ENABLE_SWITCHES]
-                ): bool,
+                    CONF_ACTUATOR_DOMAINS, default=opts[CONF_ACTUATOR_DOMAINS]
+                ): selector(
+                    {
+                        "select": {
+                            "options": ["light", "switch"],
+                            "multiple": True,
+                            "mode": "dropdown",
+                        }
+                    }
+                ),
                 vol.Optional(
                     CONF_ENABLE_BINARY_SENSORS, default=opts[CONF_ENABLE_BINARY_SENSORS]
                 ): bool,

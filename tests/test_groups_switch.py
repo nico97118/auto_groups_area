@@ -8,7 +8,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 
 from custom_components.auto_groups_area.const import (
-    CONF_ENABLE_SWITCHES,
+    CONF_ACTUATOR_DOMAINS,
     CONF_EXCLUDED_ENTITIES,
     CONF_INCLUDE_DEVICE_AREA,
     DOMAIN,
@@ -17,7 +17,7 @@ from custom_components.auto_groups_area.const import (
 
 async def _setup_switch_integration(hass: HomeAssistant, make_config_entry):
     await async_setup_component(hass, "switch", {})
-    entry = make_config_entry(options={CONF_ENABLE_SWITCHES: True})
+    entry = make_config_entry(options={CONF_ACTUATOR_DOMAINS: ["switch"]})
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
@@ -80,7 +80,7 @@ async def test_switch_group_excludes_entities(
     await async_setup_component(hass, "switch", {})
     entry = make_config_entry(
         options={
-            CONF_ENABLE_SWITCHES: True,
+            CONF_ACTUATOR_DOMAINS: ["switch"],
             CONF_EXCLUDED_ENTITIES: ["switch.demo_skip"],
         }
     )
@@ -115,7 +115,7 @@ async def test_switch_include_device_area_toggle(
     await async_setup_component(hass, "switch", {})
     entry = make_config_entry(
         options={
-            CONF_ENABLE_SWITCHES: True,
+            CONF_ACTUATOR_DOMAINS: ["switch"],
             CONF_INCLUDE_DEVICE_AREA: False,
         }
     )
