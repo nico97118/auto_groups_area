@@ -5,13 +5,19 @@ from homeassistant.const import Platform
 DOMAIN = "auto_groups_area"
 
 # Platforms
-PLATFORMS: list[Platform] = [Platform.LIGHT, Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.LIGHT,
+    Platform.SWITCH,
+    Platform.BINARY_SENSOR,
+    Platform.SENSOR,
+]
 
 # Group naming
 GROUP_PREFIX = "area_"
 
 # Options
 CONF_ENABLE_LIGHTS = "enable_lights"
+CONF_ENABLE_SWITCHES = "enable_switches"
 CONF_ENABLE_SENSORS = "enable_sensors"
 CONF_ENABLE_BINARY_SENSORS = "enable_binary_sensors"
 CONF_GROUP_PREFIX = "group_prefix"
@@ -37,6 +43,8 @@ AGGREGATION_LAST = "last"
 
 DEFAULT_OPTIONS: dict[str, object] = {
     CONF_ENABLE_LIGHTS: True,
+    # Default to off to avoid surprising upgrades.
+    CONF_ENABLE_SWITCHES: False,
     CONF_ENABLE_SENSORS: True,
     CONF_ENABLE_BINARY_SENSORS: True,
     CONF_GROUP_PREFIX: GROUP_PREFIX,
@@ -68,6 +76,8 @@ def enabled_platforms(options: dict) -> list[Platform]:
     platforms: list[Platform] = []
     if opts[CONF_ENABLE_LIGHTS]:
         platforms.append(Platform.LIGHT)
+    if opts[CONF_ENABLE_SWITCHES]:
+        platforms.append(Platform.SWITCH)
     if opts[CONF_ENABLE_BINARY_SENSORS]:
         platforms.append(Platform.BINARY_SENSOR)
     if opts[CONF_ENABLE_SENSORS]:

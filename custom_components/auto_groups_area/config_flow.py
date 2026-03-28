@@ -21,6 +21,7 @@ from .const import (
     CONF_ENABLE_BS_PRESENCE,
     CONF_ENABLE_LIGHTS,
     CONF_ENABLE_SENSORS,
+    CONF_ENABLE_SWITCHES,
     CONF_EXCLUDED_AREAS,
     CONF_EXCLUDED_ENTITIES,
     CONF_GROUP_PREFIX,
@@ -99,6 +100,9 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
             {
                 vol.Optional(
                     CONF_ENABLE_LIGHTS, default=opts[CONF_ENABLE_LIGHTS]
+                ): bool,
+                vol.Optional(
+                    CONF_ENABLE_SWITCHES, default=opts[CONF_ENABLE_SWITCHES]
                 ): bool,
                 vol.Optional(
                     CONF_ENABLE_BINARY_SENSORS, default=opts[CONF_ENABLE_BINARY_SENSORS]

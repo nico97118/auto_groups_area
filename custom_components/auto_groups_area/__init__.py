@@ -9,7 +9,6 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     DOMAIN,
-    PLATFORMS,
     enabled_platforms,
 )
 
@@ -69,6 +68,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         global_data["services_registered"] = True
 
     platforms = enabled_platforms(entry.options)
+    hass.data[DOMAIN].setdefault(entry.entry_id, {})["platforms"] = platforms
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
     return True
 
@@ -81,7 +81,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for coordinator in coordinators:
             await coordinator.async_stop()
 
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    platforms = (
+        entry_data.get("platforms")
+        if isinstance(entry_data, dict)
+        and isinstance(entry_data.get("platforms"), list)
+        else enabled_platforms(entry.options)
+    )
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, platforms)
     if unload_ok:
         # If no entries remain, remove the service and cleanup.
         if not hass.config_entries.async_entries(DOMAIN):
