@@ -135,3 +135,56 @@ async def test_sensor_last_uses_latest_changed(
     group2 = hass.states.get("sensor.area_salle_de_bain_humidity")
     assert group2 is not None
     assert float(group2.state) == 55.0
+
+
+async def test_sensor_group_ignores_self_included_entity(
+    hass: HomeAssistant, make_config_entry, caplog
+) -> None:
+    await async_setup_component(hass, "sensor", {})
+
+    entry = make_config_entry()
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    area_reg = ar.async_get(hass)
+    area = area_reg.async_create("SelfIncludeSensor")
+
+    entity_reg = er.async_get(hass)
+
+    # Real sensor member (temperature)
+    t1 = entity_reg.async_get_or_create("sensor", "demo", "t_self")
+    entity_reg.async_update_entity(t1.entity_id, area_id=area.id)
+    hass.states.async_set(
+        t1.entity_id,
+        "21",
+        {"device_class": "temperature", "unit_of_measurement": "°C"},
+    )
+
+    # Fake dynamic sensor group assigned to same area
+    group_unique_id = f"{DOMAIN}_sensor_temperature_{area.id}"
+    fake_group = entity_reg.async_get_or_create("sensor", DOMAIN, group_unique_id)
+    entity_reg.async_update_entity(fake_group.entity_id, area_id=area.id)
+    # Make the fake group look like a temperature sensor so it would normally
+    # be picked up by the area scan (to test filtering).
+    hass.states.async_set(
+        fake_group.entity_id,
+        "0",
+        {"device_class": "temperature", "unit_of_measurement": "°C"},
+    )
+
+    caplog.clear()
+    await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
+    await hass.async_block_till_done()
+
+    # Find created group entry by unique_id
+    reg = None
+    for entry in entity_reg.entities.values():
+        if getattr(entry, "unique_id", None) == group_unique_id:
+            reg = entry
+            break
+    assert reg is not None
+    state = hass.states.get(reg.entity_id)
+    assert state is not None
+    assert fake_group.entity_id not in state.attributes.get("entity_id", [])
+    assert any("Skipping self-include" in rec.getMessage() for rec in caplog.records)

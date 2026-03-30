@@ -230,3 +230,40 @@ async def test_cover_supported_features_is_intersection(
     state = hass.states.get("cover.area_chambre")
     assert state is not None
     assert state.attributes.get("supported_features") == (7 & 3)
+
+
+async def test_cover_group_ignores_self_included_entity(
+    hass: HomeAssistant, make_config_entry, caplog
+) -> None:
+    await _setup_cover_integration(hass, make_config_entry)
+
+    area_reg = ar.async_get(hass)
+    area = area_reg.async_create("SelfIncludeCover")
+
+    entity_reg = er.async_get(hass)
+
+    # Normal member cover
+    shutter = entity_reg.async_get_or_create("cover", "demo", "shutter_self")
+    entity_reg.async_update_entity(shutter.entity_id, area_id=area.id)
+    hass.states.async_set(shutter.entity_id, "closed", {"supported_features": 0})
+
+    # Fake dynamic group entity assigned to same area
+    group_unique_id = f"{DOMAIN}_cover_{area.id}"
+    fake_group = entity_reg.async_get_or_create("cover", DOMAIN, group_unique_id)
+    entity_reg.async_update_entity(fake_group.entity_id, area_id=area.id)
+    hass.states.async_set(fake_group.entity_id, "open", {"supported_features": 0})
+
+    caplog.clear()
+    await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
+    await hass.async_block_till_done()
+
+    reg = None
+    for entry in entity_reg.entities.values():
+        if getattr(entry, "unique_id", None) == group_unique_id:
+            reg = entry
+            break
+    assert reg is not None
+    state = hass.states.get(reg.entity_id)
+    assert state is not None
+    assert fake_group.entity_id not in state.attributes.get("entity_id", [])
+    assert any("Skipping self-include" in rec.getMessage() for rec in caplog.records)

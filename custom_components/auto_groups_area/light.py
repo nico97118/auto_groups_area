@@ -208,6 +208,25 @@ class AreaLightGroupCoordinator:
                 if device is not None and device.area_id == area.id:
                     member_entity_ids.append(entry.entity_id)
 
+        # Protect against self-include: if the dynamic group entity itself
+        # is assigned to this area, skip it and log a warning.
+        group_unique_id = f"{DOMAIN}_light_{area.id}"
+        filtered: list[str] = []
+        for eid in member_entity_ids:
+            reg_entry = entity_reg.entities.get(eid)
+            if (
+                reg_entry is not None
+                and getattr(reg_entry, "unique_id", None) == group_unique_id
+            ):
+                _LOGGER.warning(
+                    "Skipping self-include: dynamic light group entity '%s' found in members of area '%s'",
+                    eid,
+                    area.name,
+                )
+                continue
+            filtered.append(eid)
+        member_entity_ids = filtered
+
         unique_id = f"{DOMAIN}_{domain}_{area.id}"
         normalized_area_name = self._normalize_name(area.name)
         group_prefix = str(self._options[CONF_GROUP_PREFIX] or "")

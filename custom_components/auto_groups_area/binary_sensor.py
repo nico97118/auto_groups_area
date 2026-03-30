@@ -285,6 +285,25 @@ class AreaBinarySensorGroupCoordinator:
             unique_id = f"{DOMAIN}_binary_sensor_{group_key}_{area.id}"
             member_entity_ids = _area_entity_ids(device_classes)
 
+            # Protect against self-include: if the dynamic binary_sensor group
+            # entity itself is assigned to this area, skip it and log a warning.
+            filtered: list[str] = []
+            for eid in member_entity_ids:
+                reg_entry = entity_reg.entities.get(eid)
+                if (
+                    reg_entry is not None
+                    and getattr(reg_entry, "unique_id", None) == unique_id
+                ):
+                    _LOGGER.warning(
+                        "Skipping self-include: dynamic binary_sensor group entity '%s' found in members of area '%s' (group=%s)",
+                        eid,
+                        area.name,
+                        group_key,
+                    )
+                    continue
+                filtered.append(eid)
+            member_entity_ids = filtered
+
             _LOGGER.debug(
                 "Area '%s' binary_sensor group '%s' (members=%d, ids=%s)",
                 area.name,

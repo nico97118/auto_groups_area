@@ -296,6 +296,25 @@ class AreaSensorGroupCoordinator:
         ) in SENSOR_GROUP_DEFS.items():
             unique_id = f"{DOMAIN}_sensor_{group_key}_{area.id}"
             member_entity_ids = _area_entity_ids(device_class)
+
+            # Protect against self-include: if the dynamic sensor group entity
+            # itself is assigned to this area, skip it and log a warning.
+            filtered: list[str] = []
+            for eid in member_entity_ids:
+                reg_entry = entity_reg.entities.get(eid)
+                if (
+                    reg_entry is not None
+                    and getattr(reg_entry, "unique_id", None) == unique_id
+                ):
+                    _LOGGER.warning(
+                        "Skipping self-include: dynamic sensor group entity '%s' found in members of area '%s' (group=%s)",
+                        eid,
+                        area.name,
+                        group_key,
+                    )
+                    continue
+                filtered.append(eid)
+            member_entity_ids = filtered
             aggregation = self._aggregation_for_group(group_key) or default_aggregation
 
             _LOGGER.debug(

@@ -140,3 +140,41 @@ async def test_switch_include_device_area_toggle(
     await hass.async_block_till_done()
 
     assert hass.states.get("switch.area_garage") is None
+
+
+async def test_switch_group_ignores_self_included_entity(
+    hass: HomeAssistant, make_config_entry, caplog
+) -> None:
+    await _setup_switch_integration(hass, make_config_entry)
+
+    area_reg = ar.async_get(hass)
+    area = area_reg.async_create("SelfIncludeSwitch")
+
+    entity_reg = er.async_get(hass)
+
+    # Normal member switch
+    plug = entity_reg.async_get_or_create("switch", "demo", "plug_self")
+    entity_reg.async_update_entity(plug.entity_id, area_id=area.id)
+    hass.states.async_set(plug.entity_id, "on")
+
+    # Simulate the dynamic group entity being present and assigned to same area
+    group_unique_id = f"{DOMAIN}_switch_{area.id}"
+    fake_group = entity_reg.async_get_or_create("switch", DOMAIN, group_unique_id)
+    entity_reg.async_update_entity(fake_group.entity_id, area_id=area.id)
+    hass.states.async_set(fake_group.entity_id, "off")
+
+    caplog.clear()
+    await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
+    await hass.async_block_till_done()
+
+    # Find created group entry by unique_id
+    reg = None
+    for entry in entity_reg.entities.values():
+        if getattr(entry, "unique_id", None) == group_unique_id:
+            reg = entry
+            break
+    assert reg is not None
+    state = hass.states.get(reg.entity_id)
+    assert state is not None
+    assert fake_group.entity_id not in state.attributes.get("entity_id", [])
+    assert any("Skipping self-include" in rec.getMessage() for rec in caplog.records)

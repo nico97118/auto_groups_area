@@ -184,3 +184,45 @@ async def test_light_group_color_mode_is_supported(hass: HomeAssistant) -> None:
     supported = state.attributes.get("supported_color_modes")
     assert isinstance(supported, (list, tuple, set))
     assert state.attributes.get("color_mode") in set(supported)
+
+
+@pytest.mark.usefixtures("setup_integration")
+async def test_light_group_ignores_self_included_entity(
+    hass: HomeAssistant, caplog
+) -> None:
+    """Ensure a dynamic group entity assigned to its own area is ignored."""
+    area_reg = ar.async_get(hass)
+    area = area_reg.async_create("SelfInclude")
+
+    entity_reg = er.async_get(hass)
+
+    # Normal member light
+    lamp = entity_reg.async_get_or_create("light", "demo", "lamp_self")
+    entity_reg.async_update_entity(lamp.entity_id, area_id=area.id)
+    hass.states.async_set(lamp.entity_id, "on", {"supported_color_modes": ["onoff"]})
+
+    # Simulate the dynamic group entity being present in the registry and assigned
+    # to the same area (same unique_id as the group would have).
+    group_unique_id = f"{DOMAIN}_light_{area.id}"
+    fake_group = entity_reg.async_get_or_create("light", DOMAIN, group_unique_id)
+    entity_reg.async_update_entity(fake_group.entity_id, area_id=area.id)
+    hass.states.async_set(fake_group.entity_id, "off")
+
+    caplog.clear()
+    await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
+    await hass.async_block_till_done()
+
+    # The created group entity may not have the exact expected entity_id
+    # (registry entries can influence the final id). Find it by unique_id.
+    reg = None
+    for entry in entity_reg.entities.values():
+        if getattr(entry, "unique_id", None) == group_unique_id:
+            reg = entry
+            break
+    assert reg is not None
+    state = hass.states.get(reg.entity_id)
+    assert state is not None
+    # The fake group entity must NOT be included as a member
+    assert fake_group.entity_id not in state.attributes.get("entity_id", [])
+    # And we should have logged a warning about skipping self-include
+    assert any("Skipping self-include" in rec.getMessage() for rec in caplog.records)
