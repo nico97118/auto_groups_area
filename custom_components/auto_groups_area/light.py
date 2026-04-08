@@ -530,7 +530,7 @@ class AreaLightGroup(LightEntity):
 
         # Prefer a single color mode if any member supports color.
         preferred_color_mode: ColorMode | None = None
-        for name in ("RGBWW", "RGBW", "RGB", "HS", "WHITE"):
+        for name in ("RGBWW", "RGBW", "RGB", "HS", "XY", "WHITE"):
             candidate = getattr(ColorMode, name, None)
             if candidate is not None and candidate in modes:
                 preferred_color_mode = candidate
@@ -582,6 +582,7 @@ class AreaLightGroup(LightEntity):
             "RGBW",
             "RGB",
             "HS",
+            "XY",
             "WHITE",
             "COLOR_TEMP",
             "BRIGHTNESS",

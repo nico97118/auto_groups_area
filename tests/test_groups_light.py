@@ -187,6 +187,32 @@ async def test_light_group_color_mode_is_supported(hass: HomeAssistant) -> None:
 
 
 @pytest.mark.usefixtures("setup_integration")
+async def test_light_group_prefers_xy_color_over_color_temp(
+    hass: HomeAssistant,
+) -> None:
+    area_reg = ar.async_get(hass)
+    area = area_reg.async_create("Chambre")
+
+    entity_reg = er.async_get(hass)
+    lamp = entity_reg.async_get_or_create("light", "demo", "xy")
+    entity_reg.async_update_entity(lamp.entity_id, area_id=area.id)
+
+    hass.states.async_set(
+        lamp.entity_id,
+        "off",
+        {"supported_color_modes": ["xy", "color_temp"], "color_mode": "xy"},
+    )
+
+    await hass.services.async_call(DOMAIN, "reload", {}, blocking=True)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("light.area_chambre")
+    assert state is not None
+    supported = set(state.attributes.get("supported_color_modes", []))
+    assert "xy" in supported
+
+
+@pytest.mark.usefixtures("setup_integration")
 async def test_light_group_ignores_self_included_entity(
     hass: HomeAssistant, caplog
 ) -> None:
