@@ -172,6 +172,7 @@ async def test_large_registry_uses_supported_device_lookup(
             area_id=None,
             disabled_by=None,
             unique_id=str(i),
+            platform="demo",
         )
         for i in range(1000)
     }

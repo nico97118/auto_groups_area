@@ -187,6 +187,8 @@ class AreaCoverGroupCoordinator:
                 continue
             if entry.entity_id in excluded_entities:
                 continue
+            if entry.platform == DOMAIN:
+                continue
             if entry.disabled_by is not None:
                 continue
 

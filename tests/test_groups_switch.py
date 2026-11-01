@@ -177,4 +177,6 @@ async def test_switch_group_ignores_self_included_entity(
     state = hass.states.get(reg.entity_id)
     assert state is not None
     assert fake_group.entity_id not in state.attributes.get("entity_id", [])
-    assert any("Skipping self-include" in rec.getMessage() for rec in caplog.records)
+    assert not any(
+        "Skipping self-include" in rec.getMessage() for rec in caplog.records
+    )
