@@ -36,6 +36,7 @@ from .const import (
     DOMAIN,
     merged_options,
 )
+from .registry_updates import DeviceAreaUpdates
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ class AreaCoverGroupCoordinator:
         self._unsub_entity_reg: Callable[[], None] | None = None
         self._unsub_area_reg: Callable[[], None] | None = None
         self._unsub_device_reg: Callable[[], None] | None = None
+        self._device_area_updates = DeviceAreaUpdates(hass, self._async_update_areas)
         self._options = {**DEFAULT_OPTIONS, **dict(config_entry.options)}
 
     async def async_start(self) -> None:
@@ -89,6 +91,7 @@ class AreaCoverGroupCoordinator:
 
     async def async_stop(self) -> None:
         """Stop coordinator (listeners)."""
+        await self._device_area_updates.async_stop()
         if self._unsub_entity_reg is not None:
             self._unsub_entity_reg()
             self._unsub_entity_reg = None
@@ -194,7 +197,7 @@ class AreaCoverGroupCoordinator:
 
             # Entity inherits area from its device assignment
             if include_device_area and entry.device_id:
-                device = device_reg.devices.get(entry.device_id)
+                device = device_reg.async_get(entry.device_id)
                 if device is not None and device.area_id == area.id:
                     member_entity_ids.append(entry.entity_id)
 
@@ -309,23 +312,9 @@ class AreaCoverGroupCoordinator:
 
     @callback
     def _handle_device_registry_updated(self, event: Event) -> None:
-        """Handle device registry updates (device moved between areas)."""
-        action: str | None = event.data.get("action")
-        if action not in {"create", "update", "remove"}:
-            return
-
-        old_area_id: str | None = event.data.get("old_area_id")
-        new_area_id: str | None = event.data.get("area_id")
-
-        # When a device changes area, entity registry may not change, so update both areas.
-        if old_area_id or new_area_id:
-            self.hass.async_create_task(
-                self._async_update_areas({old_area_id, new_area_id})
-            )
-            return
-
-        # Fallback: if event schema differs, do a full refresh (still cheap for typical setups).
-        self.hass.async_create_task(self.async_update_all_groups())
+        """Refresh only areas affected by device membership changes."""
+        if self._options[CONF_INCLUDE_DEVICE_AREA]:
+            self._device_area_updates.handle(event)
 
 
 class AreaCoverGroup(CoverEntity):

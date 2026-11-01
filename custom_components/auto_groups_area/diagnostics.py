@@ -92,7 +92,7 @@ async def async_get_device_diagnostics(
             }
         )
 
-    device_data = device_reg.devices.get(device.id)
+    device_data = device_reg.async_get(device.id)
     device_area_id = device_data.area_id if device_data is not None else None
 
     # Best-effort: identify groups that currently include one of this device's entities.
