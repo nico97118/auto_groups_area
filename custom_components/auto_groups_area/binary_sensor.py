@@ -26,6 +26,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.typing import StateType
 
+from .area_assignment import async_assign_group_area
 from .const import (
     CONF_CREATE_WHEN_EMPTY,
     CONF_ENABLE_BS_MOTION,
@@ -41,6 +42,7 @@ from .const import (
     DOMAIN,
     merged_options,
 )
+from .registry_updates import DeviceAreaUpdates, entity_event_areas
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,6 +102,7 @@ class AreaBinarySensorGroupCoordinator:
         self._unsub_entity_reg: Callable[[], None] | None = None
         self._unsub_area_reg: Callable[[], None] | None = None
         self._unsub_device_reg: Callable[[], None] | None = None
+        self._device_area_updates = DeviceAreaUpdates(hass, self._async_update_areas)
         self._unsub_ha_started: Callable[[], None] | None = None
         self._options = {**DEFAULT_OPTIONS, **dict(config_entry.options)}
 
@@ -135,6 +138,7 @@ class AreaBinarySensorGroupCoordinator:
         )
 
     async def async_stop(self) -> None:
+        await self._device_area_updates.async_stop()
         if self._unsub_entity_reg is not None:
             self._unsub_entity_reg()
             self._unsub_entity_reg = None
@@ -260,6 +264,8 @@ class AreaBinarySensorGroupCoordinator:
                     continue
                 if entry.entity_id in excluded_entities:
                     continue
+                if entry.platform == DOMAIN:
+                    continue
                 if entry.disabled_by is not None:
                     continue
 
@@ -271,7 +277,7 @@ class AreaBinarySensorGroupCoordinator:
 
                 # Inherit area from device
                 if include_device_area and entry.device_id:
-                    device = device_reg.devices.get(entry.device_id)
+                    device = device_reg.async_get(entry.device_id)
                     if device is not None and device.area_id == area.id:
                         if self._is_matching_device_class(
                             entry.entity_id, device_classes
@@ -410,19 +416,15 @@ class AreaBinarySensorGroupCoordinator:
 
     @callback
     def _handle_entity_registry_updated(self, event: Event) -> None:
-        entity_id: str | None = event.data.get("entity_id")
-        if not entity_id or not entity_id.startswith("binary_sensor."):
-            return
-        old_area_id: str | None = event.data.get("old_area_id")
-        new_area_id: str | None = event.data.get("area_id")
-        _LOGGER.debug(
-            "Entity registry updated for binary_sensor (entity_id=%s, old_area_id=%s, new_area_id=%s)",
-            entity_id,
-            old_area_id,
-            new_area_id,
-        )
-        self.hass.async_create_task(
-            self._async_update_areas({old_area_id, new_area_id})
+        """Refresh old and current memberships for relevant entity changes."""
+        self._device_area_updates.schedule(
+            entity_event_areas(
+                self.hass,
+                event,
+                domain="binary_sensor",
+                include_device_area=bool(self._options[CONF_INCLUDE_DEVICE_AREA]),
+                groups=list(self.groups.values()),
+            )
         )
 
     @callback
@@ -444,25 +446,9 @@ class AreaBinarySensorGroupCoordinator:
 
     @callback
     def _handle_device_registry_updated(self, event: Event) -> None:
-        action: str | None = event.data.get("action")
-        if action not in {"create", "update", "remove"}:
-            return
-
-        old_area_id: str | None = event.data.get("old_area_id")
-        new_area_id: str | None = event.data.get("area_id")
-        _LOGGER.debug(
-            "Device registry updated for binary_sensor (action=%s, old_area_id=%s, new_area_id=%s)",
-            action,
-            old_area_id,
-            new_area_id,
-        )
-        if old_area_id or new_area_id:
-            self.hass.async_create_task(
-                self._async_update_areas({old_area_id, new_area_id})
-            )
-            return
-
-        self.hass.async_create_task(self.async_update_all_groups())
+        """Refresh only areas affected by device membership changes."""
+        if self._options[CONF_INCLUDE_DEVICE_AREA]:
+            self._device_area_updates.handle(event)
 
 
 class AreaBinarySensorGroup(BinarySensorEntity):
@@ -504,6 +490,7 @@ class AreaBinarySensorGroup(BinarySensorEntity):
         self._unsub_member_state: Callable[[], None] | None = None
 
     async def async_added_to_hass(self) -> None:
+        async_assign_group_area(self.hass, self.entity_id, self._area_id)
         self._async_subscribe_to_member_state()
 
     async def async_will_remove_from_hass(self) -> None:
@@ -518,7 +505,8 @@ class AreaBinarySensorGroup(BinarySensorEntity):
         self._attr_suggested_object_id = (
             f"{self._group_prefix}{self._normalized_area_name}_{self._group_key}"
         )
-        self.async_write_ha_state()
+        if self.hass is not None:
+            self.async_write_ha_state()
 
     @callback
     def update_members(self, member_entity_ids: list[str]) -> None:
@@ -526,7 +514,8 @@ class AreaBinarySensorGroup(BinarySensorEntity):
             return
         self._member_entity_ids = member_entity_ids
         self._async_subscribe_to_member_state()
-        self.async_write_ha_state()
+        if self.hass is not None:
+            self.async_write_ha_state()
 
     @callback
     def _async_subscribe_to_member_state(self) -> None:

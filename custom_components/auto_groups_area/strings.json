@@ -24,7 +24,11 @@
           "create_when_empty": "Create groups even when empty",
           "include_device_area": "Include entities whose device is assigned to the area",
           "included_areas": "Only include these areas",
-          "excluded_areas": "Exclude these areas"
+          "excluded_areas": "Exclude these areas",
+          "assign_group_area": "Automatically assign groups to their area"
+        },
+        "data_description": {
+          "assign_group_area": "Assigns groups with no area, including existing groups. Preserves manual assignments. Turning this off keeps existing assignments."
         }
       },
       "binary_sensors": {

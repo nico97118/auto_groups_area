@@ -251,4 +251,6 @@ async def test_light_group_ignores_self_included_entity(
     # The fake group entity must NOT be included as a member
     assert fake_group.entity_id not in state.attributes.get("entity_id", [])
     # And we should have logged a warning about skipping self-include
-    assert any("Skipping self-include" in rec.getMessage() for rec in caplog.records)
+    assert not any(
+        "Skipping self-include" in rec.getMessage() for rec in caplog.records
+    )

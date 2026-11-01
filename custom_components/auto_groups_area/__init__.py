@@ -70,6 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     platforms = enabled_platforms(entry.options)
     hass.data[DOMAIN].setdefault(entry.entry_id, {})["platforms"] = platforms
     await hass.config_entries.async_forward_entry_setups(entry, platforms)
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
     return True
 
 
@@ -96,3 +97,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if isinstance(domain_data, dict) and set(domain_data.keys()) <= {"_global"}:
             hass.data.pop(DOMAIN, None)
     return unload_ok
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Apply options to existing groups as well as subsequently created groups."""
+    await hass.config_entries.async_reload(entry.entry_id)

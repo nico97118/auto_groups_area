@@ -25,6 +25,7 @@ CONF_ENABLE_SWITCHES = "enable_switches"
 CONF_ENABLE_SENSORS = "enable_sensors"
 CONF_ENABLE_BINARY_SENSORS = "enable_binary_sensors"
 CONF_GROUP_PREFIX = "group_prefix"
+CONF_ASSIGN_GROUP_AREA = "assign_group_area"
 CONF_CREATE_WHEN_EMPTY = "create_when_empty"
 CONF_INCLUDE_DEVICE_AREA = "include_device_area"
 CONF_INCLUDED_AREAS = "included_areas"
@@ -55,6 +56,7 @@ DEFAULT_OPTIONS: dict[str, object] = {
     CONF_ENABLE_BINARY_SENSORS: True,
     CONF_GROUP_PREFIX: GROUP_PREFIX,
     CONF_CREATE_WHEN_EMPTY: False,
+    CONF_ASSIGN_GROUP_AREA: False,
     CONF_INCLUDE_DEVICE_AREA: True,
     # Stored as a list of area_id (via UI selectors). Backward compatible with
     # older string-based configs in the runtime filters.
