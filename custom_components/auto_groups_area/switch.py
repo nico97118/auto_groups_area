@@ -32,7 +32,7 @@ from .const import (
     DOMAIN,
     merged_options,
 )
-from .registry_updates import DeviceAreaUpdates
+from .registry_updates import DeviceAreaUpdates, entity_event_areas
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -281,16 +281,15 @@ class AreaSwitchGroupCoordinator:
 
     @callback
     def _handle_entity_registry_updated(self, event: Event) -> None:
-        """Handle entity registry updates."""
-        entity_id: str | None = event.data.get("entity_id")
-        if not entity_id or not entity_id.startswith("switch."):
-            return
-
-        old_area_id: str | None = event.data.get("old_area_id")
-        new_area_id: str | None = event.data.get("area_id")
-
-        self.hass.async_create_task(
-            self._async_update_areas({old_area_id, new_area_id})
+        """Refresh old and current memberships for relevant entity changes."""
+        self._device_area_updates.schedule(
+            entity_event_areas(
+                self.hass,
+                event,
+                domain="switch",
+                include_device_area=bool(self._options[CONF_INCLUDE_DEVICE_AREA]),
+                groups=list(self.groups.values()),
+            )
         )
 
     @callback
@@ -361,7 +360,8 @@ class AreaSwitchGroup(SwitchEntity):
         self._attr_suggested_object_id = (
             f"{self._group_prefix}{self._normalized_area_name}"
         )
-        self.async_write_ha_state()
+        if self.hass is not None:
+            self.async_write_ha_state()
 
     @callback
     def update_members(self, member_entity_ids: list[str]) -> None:
@@ -370,7 +370,8 @@ class AreaSwitchGroup(SwitchEntity):
             return
         self._member_entity_ids = member_entity_ids
         self._async_subscribe_to_member_state()
-        self.async_write_ha_state()
+        if self.hass is not None:
+            self.async_write_ha_state()
 
     @callback
     def _async_subscribe_to_member_state(self) -> None:
