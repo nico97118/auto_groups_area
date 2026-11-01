@@ -24,7 +24,11 @@
           "create_when_empty": "Créer les groupes même vides",
           "include_device_area": "Inclure les entités dont le device est assigné à la zone",
           "included_areas": "Inclure uniquement ces zones",
-          "excluded_areas": "Exclure ces zones"
+          "excluded_areas": "Exclure ces zones",
+          "assign_group_area": "Affecter automatiquement les groupes à leur pièce"
+        },
+        "data_description": {
+          "assign_group_area": "Affecte les groupes sans pièce, y compris les groupes existants. Conserve les affectations manuelles. Désactiver cette option ne supprime pas les affectations existantes."
         }
       },
       "binary_sensors": {

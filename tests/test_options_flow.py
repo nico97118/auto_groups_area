@@ -72,3 +72,31 @@ async def test_options_flow_sensors_step(
     updated = hass.config_entries.async_get_entry(entry.entry_id)
     assert updated is not None
     assert updated.options[CONF_HUMIDITY_AGGREGATION] == AGGREGATION_LAST
+
+
+async def test_area_assignment_opt_in(hass, setup_integration):
+    """The option defaults off and is saved through the UI flow."""
+    from custom_components.auto_groups_area.const import CONF_ASSIGN_GROUP_AREA
+
+    result = await hass.config_entries.options.async_init(setup_integration.entry_id)
+    key = next(
+        key
+        for key in result["data_schema"].schema
+        if key.schema == CONF_ASSIGN_GROUP_AREA
+    )
+    assert key.default() is False
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_ASSIGN_GROUP_AREA: True,
+            CONF_ENABLE_SENSORS: False,
+            CONF_ENABLE_BINARY_SENSORS: False,
+        },
+    )
+    assert result["step_id"] == "advanced"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], user_input={}
+    )
+    assert result["type"] == "create_entry"
+    await hass.async_block_till_done()
+    assert setup_integration.options[CONF_ASSIGN_GROUP_AREA] is True

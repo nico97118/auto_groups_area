@@ -26,6 +26,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.typing import StateType
 
+from .area_assignment import async_assign_group_area
 from .const import (
     CONF_CREATE_WHEN_EMPTY,
     CONF_ENABLE_BS_MOTION,
@@ -489,6 +490,7 @@ class AreaBinarySensorGroup(BinarySensorEntity):
         self._unsub_member_state: Callable[[], None] | None = None
 
     async def async_added_to_hass(self) -> None:
+        async_assign_group_area(self.hass, self.entity_id, self._area_id)
         self._async_subscribe_to_member_state()
 
     async def async_will_remove_from_hass(self) -> None:

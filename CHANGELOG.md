@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Opt-in automatic area assignment for generated groups, preserving existing manual assignments.
+
+### Fixed
+- Exclude all generated groups from area memberships to prevent self-inclusion and cross-group cycles.
+- Apply options to existing groups by reloading the integration after options changes.
+
 ## [0.0.9-beta.1] - 2026-03-28
 ### Added
 - Optional area `switch` groups (same model as `light` groups).

@@ -85,6 +85,18 @@ You can configure behavior from the UI:
 
 ### Options
 
+**Automatically assign groups to their area** (off by default): assigns generated
+light, switch, cover, sensor and binary sensor groups that have no area, including
+existing groups when enabled. Existing manual area assignments are preserved.
+Disabling the option keeps previously assigned areas. Options are applied by
+reloading the integration automatically. If you clear a group's area while this
+option is enabled, it will be assigned again on the next integration reload.
+
+Generated groups are always excluded from this integration's group memberships,
+even when assigned to an area manually, to prevent self-inclusion and cycles
+between generated groups. Other integrations' entities remain eligible.
+
+
 - **Create light groups / sensor groups / binary_sensor groups**: Enable or disable group creation by platform.
 - **Entity id prefix (object id)**: Prefix used to build the entity_id (default: `area_`).
 - **Create groups even when empty**: If disabled (default), empty groups are not created and existing groups are removed when they become empty.

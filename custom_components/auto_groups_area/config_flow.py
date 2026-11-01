@@ -14,6 +14,7 @@ from .const import (
     AGGREGATION_MEAN,
     AGGREGATION_MIN,
     CONF_ACTUATOR_DOMAINS,
+    CONF_ASSIGN_GROUP_AREA,
     CONF_CREATE_WHEN_EMPTY,
     CONF_ENABLE_BINARY_SENSORS,
     CONF_ENABLE_BS_MOTION,
@@ -116,6 +117,9 @@ class AutoGroupsAreaOptionsFlow(config_entries.OptionsFlow):
                 ): bool,
                 vol.Optional(
                     CONF_ENABLE_SENSORS, default=opts[CONF_ENABLE_SENSORS]
+                ): bool,
+                vol.Optional(
+                    CONF_ASSIGN_GROUP_AREA, default=opts[CONF_ASSIGN_GROUP_AREA]
                 ): bool,
                 vol.Optional(CONF_GROUP_PREFIX, default=opts[CONF_GROUP_PREFIX]): str,
                 vol.Optional(
